@@ -3,6 +3,7 @@ export * from "./erp/schemas";
 export * from "./erp/permissions";
 export * from "./erp/numbering";
 export * from "./erp/projects";
+export * from "./erp/projectAnalytics";
 export * from "./erp/offers";
 export * from "./erp/stock";
 export * from "./erp/production";

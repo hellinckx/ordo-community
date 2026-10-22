@@ -14,6 +14,7 @@ import { useFolderWatch } from "@/services/folderWatch";
 import { startSyncLoop, useSync } from "@/services/sync";
 import { startIntegrations } from "@/services/integrations/runner";
 import { AlertTriangle } from "lucide-react";
+import { InstallApp } from "@/components/InstallApp";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -207,6 +208,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       {content}
+      <InstallApp />
       <Toaster />
     </ErrorBoundary>
   );

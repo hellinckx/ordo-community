@@ -40,7 +40,7 @@ export interface StepInput {
 }
 
 export interface AtlasProvider {
-  id: "claude" | "codex";
+  id: "claude" | "openai" | "codex";
   step(input: StepInput): Promise<StepResult>;
 }
 
@@ -58,7 +58,7 @@ export interface UserRaw {
   context?: string;
 }
 export interface AssistantRaw {
-  provider?: "claude" | "codex";
+  provider?: "claude" | "openai" | "codex";
   /** Claude: the assistant content blocks exactly as returned (thinking blocks included). */
   content?: unknown[];
   /** Not sent back to the model (notes like "Abgebrochen" or a declined request). */

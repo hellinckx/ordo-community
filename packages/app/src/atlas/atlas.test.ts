@@ -120,6 +120,47 @@ describe("read tools on the demo workspace", () => {
     expect(st.items[0].onHand).toBe(40);
   });
 
+  it("gives Mitarbeit only their own time entries in every read tool, project totals stay", async () => {
+    const pid = store.activeProfile.id;
+    const at = nowIso();
+    const row = (id: string, memberId: string, minutes: number) => ({ id, profileId: pid, projectId: ids.project, memberId, date: "2026-10-19", minutes, description: `Eintrag ${id}`, billable: true, createdAt: at, updatedAt: at });
+    store.mutate((v) => { v.timeEntries = [...v.timeEntries, row("tim_mine", ids.member, 60), row("tim_other", ids.other, 120)]; });
+    try {
+      const list = (role: Role) => call("list_records", { collection: "timeEntries", filters: [{ field: "projectId", op: "eq", value: ids.project }], limit: 50 }, role).then((r) => JSON.parse(r.content).records as { id: string }[]);
+      const sum = (role: Role) => call("aggregate", { collection: "timeEntries", metric: "sum", field: "minutes", filters: [{ field: "projectId", op: "eq", value: ids.project }] }, role).then((r) => JSON.parse(r.content).total as number);
+      const ownerIds = (await list("owner")).map((r) => r.id);
+      expect(ownerIds).toEqual(expect.arrayContaining(["tim_mine", "tim_other"]));
+      const memberIds = (await list("member")).map((r) => r.id);
+      expect(memberIds).toContain("tim_mine");
+      expect(memberIds).not.toContain("tim_other");
+      expect((await sum("owner")) - (await sum("member"))).toBeGreaterThanOrEqual(120);
+      const search = JSON.parse((await call("search", { query: "Eintrag tim_other" }, "member")).content);
+      expect(JSON.stringify(search)).not.toContain("tim_other");
+      // the project's total hours are not personal and stay the same for everyone
+      const total = (role: Role) => call("project_status", { project: "Website" }, role).then((r) => JSON.parse(r.content).hoursLogged);
+      expect(await total("member")).toBe(await total("owner"));
+      // the snapshot is filtered, the vault is not
+      expect(store.vault.timeEntries.some((e) => e.id === "tim_other")).toBe(true);
+    } finally {
+      store.mutate((v) => { v.timeEntries = v.timeEntries.filter((e) => e.id !== "tim_mine" && e.id !== "tim_other"); });
+    }
+  });
+
+  it("shows hours per person and team load only to roles that may see everyone's time", async () => {
+    const owner = JSON.parse((await call("project_status", { project: "Website" })).content);
+    expect(owner).toHaveProperty("hoursByPerson");
+    expect(owner).toHaveProperty("workPackages");
+    expect((await call("team_load", {})).ok).toBe(true);
+    // a member books only their own time: no one else's hours, no team utilisation
+    const member = JSON.parse((await call("project_status", { project: "Website" }, "member")).content);
+    expect(member).not.toHaveProperty("hoursByPerson");
+    const load = await call("team_load", {}, "member");
+    expect(load.ok).toBe(false);
+    // the team area closed in Einstellungen → Atlas hides it from the owner too
+    const closed = JSON.parse((await call("project_status", { project: "Website" }, "owner", { team: "none" })).content);
+    expect(closed).not.toHaveProperty("hoursByPerson");
+  });
+
   it("returns readable errors and validates chart input", async () => {
     const r = await call("get_record", { collection: "projects", id: "gibtsnicht" });
     expect(r.ok).toBe(false);
@@ -311,9 +352,10 @@ describe("prompt, routing and transcripts", () => {
     expect(pickEffort("Wie lief das letzte Quartal?")).toBe("high");
     expect(pickEffort("Umsatz pro Kunde als Diagramm")).toBe("high");
     expect(pickEffort("Leg drei Aufgaben an und setze danach das Projekt auf aktiv")).toBe("high");
-    const r = route({ provider: "claude", model: "auto", permission: "confirm", consent: true, instructions: "", codexModel: "", areas: {} }, "Hallo?");
+    const r = route({ provider: "claude", model: "auto", permission: "confirm", consent: true, instructions: "", codexModel: "", openaiModel: "gpt-5.4", areas: {} }, "Hallo?");
     expect(r.model).toBe("claude-opus-5-5");
-    expect(route({ provider: "claude", model: "claude-haiku-5-5", permission: "confirm", consent: true, instructions: "", codexModel: "", areas: {} }, "x").effort).toBe("medium");
+    expect(route({ provider: "claude", model: "claude-haiku-5-5", permission: "confirm", consent: true, instructions: "", codexModel: "", openaiModel: "gpt-5.4", areas: {} }, "x").effort).toBe("medium");
+    expect(route({ provider: "openai", model: "auto", permission: "confirm", consent: true, instructions: "", codexModel: "", openaiModel: "gpt-5.4", areas: {} }, "Wie lief das letzte Quartal?")).toMatchObject({ provider: "openai", model: "gpt-5.4", effort: "high" });
   });
 
   it("turns the stored chat into valid Messages API turns", () => {
@@ -342,5 +384,27 @@ describe("prompt, routing and transcripts", () => {
     expect(p).toMatch(/### describe_workspace/);
     expect(p).toMatch(/### Person\nHallo/);
     expect(p).toMatch(/tool_calls/);
+  });
+});
+
+describe("OpenAI transcript", () => {
+  it("replays its own tool calls and folds foreign ones into text", async () => {
+    const { toOpenAiInput } = await import("./providers/openai");
+    const at = "2026-10-22T10:00:00.000Z";
+    const items = toOpenAiInput([
+      { id: "1", role: "user", text: "Wie viel ist offen?", at, toolCalls: [], visuals: [] },
+      { id: "2", role: "assistant", text: "", at, toolCalls: [{ id: "call_a", name: "list_open", input: { x: 1 }, status: "done", summary: "" }], visuals: [], raw: { provider: "openai" } },
+      { id: "3", role: "tool", text: '{"sum":5}', at, toolCalls: [], visuals: [], toolCallId: "call_a" },
+      { id: "4", role: "assistant", text: "5 € sind offen.", at, toolCalls: [], visuals: [], raw: { provider: "openai" } },
+      { id: "5", role: "assistant", text: "Erledigt", at, toolCalls: [{ id: "c9", name: "add_time", input: {}, status: "done", summary: "2 h" }], visuals: [], raw: { provider: "claude" } },
+      { id: "6", role: "tool", text: "{}", at, toolCalls: [], visuals: [], toolCallId: "c9" },
+    ]);
+    expect(items).toEqual([
+      { role: "user", content: "Wie viel ist offen?" },
+      { type: "function_call", call_id: "call_a", name: "list_open", arguments: '{"x":1}' },
+      { type: "function_call_output", call_id: "call_a", output: '{"sum":5}' },
+      { role: "assistant", content: "5 € sind offen." },
+      { role: "assistant", content: "Erledigt\n[add_time: 2 h]" },
+    ]);
   });
 });

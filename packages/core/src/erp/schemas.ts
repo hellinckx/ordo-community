@@ -392,7 +392,7 @@ export const ModuleStateSchema = z.object({
 export type ModuleState = z.infer<typeof ModuleStateSchema>;
 
 export const AtlasSettingsSchema = z.object({
-  provider: z.enum(["none", "claude", "codex"]).default("none"),
+  provider: z.enum(["none", "claude", "openai", "codex"]).default("none"),
   /** "auto" picks effort/model per request; otherwise a fixed model id. */
   model: z.string().default("auto"),
   /** read = only looks, confirm = asks before every change, auto = changes on its own. */
@@ -402,6 +402,8 @@ export const AtlasSettingsSchema = z.object({
   /** Custom instructions ("Antworte immer kurz"). */
   instructions: z.string().default(""),
   codexModel: z.string().default(""),
+  /** OpenAI model for Atlas with the person's own API key (provider "openai"). */
+  openaiModel: z.string().default("gpt-5.4"),
   /**
    * Access per Atlas area (see `ATLAS_AREAS` in the app): none = invisible, read = look only, write = may change.
    * A missing key means the area's default ("write", except outgoing invoices and team = "read").

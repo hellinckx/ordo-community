@@ -1,4 +1,4 @@
-import type { Vault } from "../model/types";
+import type { Settings, Vault } from "../model/types";
 import { ENTITY_COLLECTIONS, VaultSchema } from "../model/types";
 
 export interface DataExport {
@@ -26,6 +26,41 @@ export function parseDataExport(bytes: Uint8Array): Vault {
   const obj = JSON.parse(text) as Partial<DataExport>;
   if (obj.format !== "summa-data" || !obj.data) throw new Error("Keine gültige Summa-Datenexport-Datei.");
   return VaultSchema.parse(obj.data);
+}
+
+/** Settings areas that belong to one device (folder paths, the local interface on this computer) and never travel with sync. */
+export const DEVICE_SETTINGS = ["watchFolders", "localApi"] as const;
+
+/**
+ * Settings from another device merged into this one's, area by area (ai, atlas, integrations, …): the area changed
+ * last wins (settings.stamps). On a tie – e.g. vaults from before the stamps – `prefer` decides. AI usage counters
+ * only ever grow, so the larger count per month, feature and model is kept from both sides.
+ */
+export function mergeSettings(local: Settings, remote: Settings, prefer: "local" | "remote" = "local"): Settings {
+  const out = { ...local } as unknown as Record<string, unknown>;
+  const theirs = remote as unknown as Record<string, unknown>;
+  const stamps = { ...(local.stamps ?? {}) };
+  for (const k of Object.keys(theirs)) {
+    if (k === "stamps" || (DEVICE_SETTINGS as readonly string[]).includes(k)) continue;
+    const r = remote.stamps?.[k] ?? "";
+    const l = local.stamps?.[k] ?? "";
+    if (r > l || (r === l && prefer === "remote")) {
+      out[k] = theirs[k];
+      if (r) stamps[k] = r;
+    }
+  }
+  const months = { ...remote.aiUsage.months } as Settings["aiUsage"]["months"];
+  for (const [month, features] of Object.entries(local.aiUsage.months)) {
+    for (const [feature, models] of Object.entries(features)) {
+      for (const [model, bucket] of Object.entries(models)) {
+        const other = months[month]?.[feature]?.[model];
+        if (other && other.calls >= bucket.calls) continue;
+        months[month] = { ...months[month], [feature]: { ...months[month]?.[feature], [model]: bucket } };
+      }
+    }
+  }
+  const usage = out.aiUsage as Settings["aiUsage"];
+  return { ...(out as unknown as Settings), aiUsage: { ...usage, months }, stamps };
 }
 
 /**

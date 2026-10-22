@@ -93,6 +93,15 @@ body,
   height: 100%;
 }
 
+/* A grid without grid-cols-* (the phone layout of "grid sm:grid-cols-2 …") gets one column that may shrink.
+   The implicit "auto" column grows with the longest unbreakable text and pushes cards past the screen edge.
+   In the base layer, so every grid-cols-* utility still wins. */
+@layer base {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -112,14 +121,15 @@ body {
   color: #0c2552;
 }
 
+/* only the style of wrapping: "text-wrap: balance" would also switch wrapping on and break `truncate` on headings */
 h1,
 h2,
 h3 {
-  text-wrap: balance;
+  text-wrap-style: balance;
 }
 
 p {
-  text-wrap: pretty;
+  text-wrap-style: pretty;
 }
 
 input[type="number"]::-webkit-inner-spin-button,

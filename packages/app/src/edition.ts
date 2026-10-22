@@ -5,6 +5,8 @@
  */
 import type { ComponentType, ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PickedFile } from "@/platform/types";
+import type { AtlasTool } from "@/atlas/tools";
 
 export interface OperatorConfig {
   /** "ordo": the hosted Ordo by its operator; "community": the open-source edition anyone can build and run. */
@@ -41,4 +43,9 @@ export interface OperatorParts {
   joinWaitlist: ((email: string) => Promise<void>) | null;
   /** Deletes the signed-in account on the server; null = the generic way (summa_delete_self). */
   deleteAccount: (() => Promise<void>) | null;
+  /** Files Atlas understands only in this edition (e.g. the backup of the operator's old ERP) and the tools for them. */
+  atlasFiles: {
+    recognize(file: PickedFile): Promise<{ format: string; summary: string; data: unknown } | null>;
+    tools: AtlasTool[];
+  } | null;
 }

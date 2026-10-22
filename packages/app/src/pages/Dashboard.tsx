@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Camera, CheckCircle2, CheckSquare, Contact2, Eye, FileSignature, Flag, FolderOpen, Hammer, Landmark, LayoutGrid, PackageMinus, Plus, ReceiptText, Timer, Users, Zap } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Camera, Check, CheckCircle2, CheckSquare, Contact2, Eye, FileSignature, Flag, FolderOpen, Hammer, Landmark, LayoutGrid, PackageMinus, Plus, ReceiptText, Timer, Users, Zap } from "lucide-react";
 import { can, overview, upcomingUvaDeadlines, daysUntil, turnoverForYear, constantsFor, computeE1a, computeL1, todayIso, type Role, type Vault } from "@ordo/core";
 import { useList, useProfile, useVault } from "@/state/hooks";
 import { Badge, Button, Card, EmptyState, PageHeader, Stat } from "@/components/ui";
@@ -8,10 +8,11 @@ import { MonthlyChart, CategoryDonut } from "@/components/charts";
 import { cls, fmtDate, fmtMoney, fmtPct } from "@/lib/format";
 import { CategoryIcon } from "@/lib/icons";
 import { TransactionDialog } from "@/components/TransactionForm";
-import { isMobile } from "@/platform";
+import { isMobile, isTauri } from "@/platform";
 import { IntakeButton, useIntake } from "@/components/Intake";
 import { useInstalledModules, useMe } from "@/modules/registry";
 import { OWNER_PLACEHOLDER } from "@/modules/basis/team/owner";
+import { useAtlasReadiness } from "@/atlas/hooks";
 
 export default function Dashboard() {
   const profile = useProfile();
@@ -41,9 +42,43 @@ export default function Dashboard() {
         title={firstName ? `${greeting}, ${firstName}` : greeting}
         subtitle={`${fmtDate(todayIso(), { long: true })} · ${profile.company.name || profile.name}`}
       />
+      <SetupSteps />
       {more ? <TodayStrip withSumma={!summa} /> : null}
       {summa ? <SummaOverview widgetGrid={widgetGrid} /> : widgetGrid ?? (more ? null : <BasisStart />)}
     </div>
+  );
+}
+
+/**
+ * Ordo is built to run on the person's own AI subscription: connect it once (and, on the desktop, the folders
+ * where invoices land) and the rest happens by itself. Shown until both are done.
+ */
+function SetupSteps() {
+  const vault = useVault();
+  const profile = useProfile();
+  const navigate = useNavigate();
+  const atlas = useAtlasReadiness();
+  const steps = [
+    { id: "ai", done: atlas.ok, title: "KI-Abo verbinden", body: "Dein ChatGPT-Abo (Desktop-App) oder ein API-Key von Claude bzw. OpenAI. Damit liest Ordo Rechnungen und Atlas erledigt die Arbeit für dich.", to: "/einstellungen/atlas", action: "Verbinden" },
+    ...(isTauri ? [{ id: "folders", done: vault.settings.watchFolders.some((f) => f.profileId === profile.id), title: "Ordner verbinden", body: "Die Ordner, in denen deine Rechnungen und Kontoauszüge landen. Neue Dateien holt Ordo dann selbst.", to: "/einstellungen/ordner", action: "Ordner wählen" }] : []),
+  ];
+  if (steps.every((x) => x.done)) return null;
+  return (
+    <section className="surface p-5">
+      <div className="text-[15px] font-semibold">{steps.length > 1 ? "Zwei Schritte, dann läuft Ordo von selbst" : "Ein Schritt, dann läuft Ordo von selbst"}</div>
+      <ol className="mt-3 grid gap-3 md:grid-cols-2">
+        {steps.map((x, i) => (
+          <li key={x.id} className={cls("flex items-start gap-3 rounded-xl border border-(--border) p-3", x.done && "opacity-60")}>
+            <span className={cls("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold", x.done ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-brand-700 text-white")}>{x.done ? <Check className="h-4 w-4" /> : i + 1}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">{x.title}</div>
+              <p className="mt-0.5 text-xs text-(--text-muted)">{x.body}</p>
+            </div>
+            {!x.done ? <Button size="sm" onClick={() => navigate(x.to)}>{x.action}</Button> : null}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

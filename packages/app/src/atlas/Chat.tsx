@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router";
-import { AlertTriangle, ArrowUp, Check, CircleAlert, Loader2, PencilLine, Settings2, Square, X } from "lucide-react";
+import { AlertTriangle, ArrowUp, Check, CircleAlert, FileText, Loader2, Paperclip, PencilLine, Settings2, Square, Upload, X } from "lucide-react";
 import type { AtlasChat, AtlasMessage } from "@ordo/core";
 import { useSession } from "@/state/session";
 import { Button } from "@/components/ui";
@@ -13,7 +13,10 @@ import { claudeModelLabel } from "./providers/claude";
 import { EFFORT_LABEL } from "./router";
 import type { AssistantRaw } from "./providers/types";
 import type { AtlasVisual } from "./tools";
-import { TOOL_LABELS } from "./toolset";
+import { TOOL_LABELS, toolContext } from "./toolset";
+import { addAttachment, attachmentLine, pickedFrom, sizeLabel, type Attachment } from "./attachments";
+import { PARTS } from "@/operator";
+import type { PickedFile } from "@/platform/types";
 
 export const SUGGESTIONS = ["Wie lief das letzte Quartal?", "Welche Aufgaben sind überfällig?", "Erfasse 2 Stunden auf das Projekt Website", "Umsatz pro Kunde als Diagramm"];
 
@@ -49,12 +52,31 @@ export function ChatView({ chatId, onChatCreated, compact, onNavigate }: { chatI
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const busy = run?.status === "running";
+  // files for the next message: read on the device, the message carries one line per file
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [reading, setReading] = useState(false);
+  const [dropping, setDropping] = useState(false);
+  const addFiles = async (picked: PickedFile[]) => {
+    if (!picked.length) return;
+    setReading(true);
+    try {
+      const added = await Promise.all(picked.map(addAttachment));
+      setFiles((f) => [...f, ...added]);
+    } finally {
+      setReading(false);
+    }
+  };
 
   const send = async (text: string) => {
-    const id = await sendMessage(chat?.id, text);
+    const lines = files.map(attachmentLine);
+    const body = [text.trim() || (lines.length ? "Was steckt in der Datei, und was kannst du damit für mich anlegen?" : ""), ...lines].filter(Boolean).join("\n\n");
+    if (!body) return;
+    setFiles([]);
+    const id = await sendMessage(chat?.id, body);
     if (id !== chatId) onChatCreated?.(id);
     stick.current = true;
   };
+  const hasFiles = (e: DragEvent) => e.dataTransfer.types.includes("Files");
 
   useLayoutEffect(() => {
     const el = scroller.current;
@@ -64,7 +86,26 @@ export function ChatView({ chatId, onChatCreated, compact, onNavigate }: { chatI
   const empty = !chat || chat.messages.length === 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      data-own-drop="atlas"
+      className="relative flex h-full min-h-0 flex-col"
+      onDragOver={(e) => { if (!hasFiles(e) || !ready.ok) return; e.preventDefault(); setDropping(true); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropping(false); }}
+      onDrop={(e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setDropping(false);
+        if (ready.ok) void pickedFrom(e.dataTransfer.files).then(addFiles);
+      }}
+    >
+      {dropping ? (
+        <div className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-brand-500 bg-(--surface)/90 text-center backdrop-blur-sm">
+          <Upload className="mb-2 h-8 w-8 text-brand-600" />
+          <div className="font-semibold">Datei an Atlas geben</div>
+          <div className="mt-0.5 max-w-xs text-sm text-(--text-muted)">Atlas sagt dir, was drin ist, und legt an, was du willst.</div>
+        </div>
+      ) : null}
       <div
         ref={scroller}
         onScroll={(e) => {
@@ -86,7 +127,7 @@ export function ChatView({ chatId, onChatCreated, compact, onNavigate }: { chatI
         )}
       </div>
       <div className={cls("shrink-0", compact ? "px-3 pb-3" : "pt-2")}>
-        <Composer disabled={!ready.ok} busy={busy || run?.status === "awaiting"} running={busy} onSend={send} onStop={() => chatId && stop(chatId)} autoFocus={compact} compact={compact} />
+        <Composer disabled={!ready.ok} busy={busy || run?.status === "awaiting"} running={busy} onSend={send} onStop={() => chatId && stop(chatId)} autoFocus={compact} compact={compact} files={files} reading={reading} onAddFiles={addFiles} onRemoveFile={(id) => setFiles((f) => f.filter((x) => x.id !== id))} />
       </div>
     </div>
   );
@@ -107,10 +148,24 @@ function Messages({ chat, run, onNavigate }: { chat: AtlasChat; run?: RunState; 
   );
 }
 
+const FILE_LINE = /^📎 (.+?) \(([^)]+)\) – (.*?)(?: \[Datei-ID: [^\]]+\])?$/;
+
 function UserBubble({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const attached = lines.map((l) => FILE_LINE.exec(l.trim())).filter((m): m is RegExpExecArray => !!m);
+  const rest = lines.filter((l) => !FILE_LINE.test(l.trim())).join("\n").trim();
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-[20px] rounded-br-md bg-brand-50 px-4 py-2.5 text-[14.5px] leading-relaxed whitespace-pre-wrap text-(--text) dark:bg-brand-900/35">{text}</div>
+    <div className="flex flex-col items-end gap-1.5">
+      {attached.map((m, i) => (
+        <div key={i} className="flex max-w-[85%] items-start gap-2.5 rounded-2xl border border-(--border) bg-(--surface) px-3 py-2 text-left">
+          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+          <div className="min-w-0">
+            <div className="truncate text-[13.5px] font-medium">{m[1]} <span className="font-normal text-(--text-muted)">· {m[2]}</span></div>
+            <div className="line-clamp-2 text-[12px] text-(--text-muted)">{m[3]}</div>
+          </div>
+        </div>
+      ))}
+      {rest ? <div className="max-w-[85%] rounded-[20px] rounded-br-md bg-brand-50 px-4 py-2.5 text-[14.5px] leading-relaxed whitespace-pre-wrap text-(--text) dark:bg-brand-900/35">{rest}</div> : null}
     </div>
   );
 }
@@ -133,7 +188,7 @@ function AssistantBlock({ m, chatId, results, activeCallId, onNavigate }: { m: A
       ) : null}
       {charts.map((v, i) => <AtlasVisualView key={i} visual={v} onNavigate={onNavigate} />)}
       {links.length ? <div className="flex flex-wrap gap-1.5">{links.map((v, i) => <AtlasVisualView key={i} visual={v} onNavigate={onNavigate} />)}</div> : null}
-      {pending.map((t) => <ConfirmCard key={t.id} chatId={chatId} callId={t.id} summary={t.summary} input={t.input} />)}
+      {pending.map((t) => <ConfirmCard key={t.id} chatId={chatId} callId={t.id} name={t.name} summary={t.summary} input={t.input} onNavigate={onNavigate} />)}
     </div>
   );
 }
@@ -156,8 +211,46 @@ function ToolChip({ name, summary, status, running }: { name: string; summary: s
   );
 }
 
-function ConfirmCard({ chatId, callId, summary, input }: { chatId: string; callId: string; summary: string; input: unknown }) {
+/** A tool whose confirmation card shows a preview and choices (e.g. the import of the old ERP). Looked up on use: the
+    operator module imports the chat itself, so it is not ready while this module loads. */
+const detailTool = (name: string) => (PARTS.atlasFiles?.tools ?? []).find((t) => t.name === name && (t.details || t.options));
+
+/** Writes the person's choices into the pending call, so "Ausführen" runs exactly what the card shows. */
+function patchCallInput(chatId: string, callId: string, input: unknown) {
+  useSession.getState().store?.update("atlasChats", chatId, (c) => ({ ...c, messages: c.messages.map((m) => (m.toolCalls.some((t) => t.id === callId) ? { ...m, toolCalls: m.toolCalls.map((t) => (t.id === callId ? { ...t, input } : t)) } : m)) }), "atlas.message");
+}
+
+function ConfirmCard({ chatId, callId, name, summary, input, onNavigate }: { chatId: string; callId: string; name: string; summary: string; input: unknown; onNavigate?: () => void }) {
   const [busy, setBusy] = useState<"yes" | "no" | null>(null);
+  const tool = useMemo(() => detailTool(name), [name]);
+  const navigate = useNavigate();
+  const parsed = useMemo(() => (tool ? tool.input.safeParse(input ?? {}) : null), [tool, input]);
+  const ctx = useMemo(() => {
+    const store = useSession.getState().store;
+    return store ? toolContext(store, "owner", (to) => { onNavigate?.(); navigate(to); }) : null;
+  }, [navigate, onNavigate]);
+  const options = useMemo(() => {
+    try {
+      return tool?.options && parsed?.success && ctx ? tool.options(parsed.data, ctx) : [];
+    } catch {
+      return [];
+    }
+  }, [tool, parsed, ctx]);
+  const [choice, setChoice] = useState<Record<string, boolean>>(() => Object.fromEntries(options.map((o) => [o.key, o.on])));
+  const effective = useMemo(() => (tool?.withOptions && parsed?.success ? tool.withOptions(parsed.data, choice) : parsed?.success ? parsed.data : input), [tool, parsed, choice, input]);
+  const [details, problem] = useMemo((): [AtlasVisual | null, string | null] => {
+    if (!tool?.details || !ctx || !parsed?.success) return [null, null];
+    try {
+      return [tool.details(effective, ctx), null];
+    } catch (e) {
+      return [null, e instanceof Error ? e.message : String(e)];
+    }
+  }, [tool, ctx, parsed, effective]);
+  const approve = async () => {
+    setBusy("yes");
+    if (tool?.withOptions && parsed?.success) patchCallInput(chatId, callId, effective);
+    await decideCall(chatId, callId, true);
+  };
   return (
     <div className="surface border-brand-200! p-4 dark:border-brand-900!">
       <div className="flex items-start gap-3">
@@ -167,6 +260,18 @@ function ConfirmCard({ chatId, callId, summary, input }: { chatId: string; callI
         <div className="min-w-0 flex-1">
           <div className="text-[12.5px] text-(--text-muted)">Atlas möchte etwas ändern</div>
           <div className="mt-0.5 text-[14.5px] font-medium">{summary}</div>
+          {details ? <div className="mt-3"><AtlasVisualView visual={details} onNavigate={onNavigate} /></div> : null}
+          {problem ? <div className="mt-2 text-[13px] text-amber-700 dark:text-amber-300">{problem}</div> : null}
+          {options.length ? (
+            <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+              {options.map((o) => (
+                <label key={o.key} className="flex cursor-pointer items-start gap-2 rounded-lg px-1 py-0.5 text-[13px] hover:bg-(--surface-2)" title={o.hint}>
+                  <input type="checkbox" className="mt-0.5 accent-brand-600" checked={choice[o.key] ?? o.on} disabled={!!busy} onChange={(e) => setChoice((c) => ({ ...c, [o.key]: e.target.checked }))} />
+                  <span>{o.label}</span>
+                </label>
+              ))}
+            </div>
+          ) : null}
           <details className="mt-1.5">
             <summary className="cursor-pointer text-xs text-(--text-muted) hover:text-(--text)">Details</summary>
             <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-(--surface-2) p-2 font-mono text-[11.5px] whitespace-pre-wrap">{formatInput(input)}</pre>
@@ -175,7 +280,7 @@ function ConfirmCard({ chatId, callId, summary, input }: { chatId: string; callI
       </div>
       <div className="mt-3 flex justify-end gap-2">
         <Button size="sm" variant="outline" loading={busy === "no"} disabled={!!busy} onClick={async () => { setBusy("no"); await decideCall(chatId, callId, false); }}>Abbrechen</Button>
-        <Button size="sm" loading={busy === "yes"} disabled={!!busy} onClick={async () => { setBusy("yes"); await decideCall(chatId, callId, true); }}>Ausführen</Button>
+        <Button size="sm" loading={busy === "yes"} disabled={!!busy || !!problem} onClick={() => void approve()}>{tool ? "Übernehmen" : "Ausführen"}</Button>
       </div>
     </div>
   );
@@ -256,8 +361,20 @@ function Welcome({ onPick, compact }: { onPick: (s: string) => void; compact?: b
   );
 }
 
-function Composer({ disabled, busy, running, onSend, onStop, autoFocus, compact }: { disabled: boolean; busy: boolean; running: boolean; onSend: (t: string) => void | Promise<void>; onStop: () => void; autoFocus?: boolean; compact?: boolean }) {
+const ATTACH_TYPES = [".json", ".csv", ".tsv", ".xlsx", ".txt", ".xml", ".pdf", ".jpg", ".jpeg", ".png", ".webp", ".heic", ".eml"];
+
+function Composer({ disabled, busy, running, onSend, onStop, autoFocus, compact, files, reading, onAddFiles, onRemoveFile }: { disabled: boolean; busy: boolean; running: boolean; onSend: (t: string) => void | Promise<void>; onStop: () => void; autoFocus?: boolean; compact?: boolean; files: Attachment[]; reading: boolean; onAddFiles: (f: PickedFile[]) => void | Promise<void>; onRemoveFile: (id: string) => void }) {
   const [text, setText] = useState("");
+  const platform = useSession((s) => s.platform);
+  const pick = async () => {
+    if (!platform) return;
+    await onAddFiles(await platform.pickFiles({ multiple: true, accept: ATTACH_TYPES }));
+  };
+  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!e.clipboardData.files.length) return;
+    e.preventDefault();
+    void pickedFrom(e.clipboardData.files).then(onAddFiles);
+  };
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -270,7 +387,7 @@ function Composer({ disabled, busy, running, onSend, onStop, autoFocus, compact 
   }, [autoFocus]);
   const submit = () => {
     const t = text.trim();
-    if (!t || disabled || running) return;
+    if ((!t && !files.length) || disabled || running || reading) return;
     setText("");
     void onSend(t);
   };
@@ -282,7 +399,23 @@ function Composer({ disabled, busy, running, onSend, onStop, autoFocus, compact 
   };
   return (
     <div className={cls("mx-auto w-full", compact ? "" : "max-w-3xl")}>
+      {files.length || reading ? (
+        <div className="mb-1.5 flex flex-wrap gap-1.5 px-1">
+          {files.map((f) => (
+            <span key={f.id} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-(--border) bg-(--surface) py-1 pr-1 pl-2.5 text-[12.5px]" title={f.summary}>
+              <FileText className="h-3.5 w-3.5 shrink-0 text-brand-600" />
+              <span className="truncate">{f.name}</span>
+              <span className="shrink-0 text-(--text-muted)">{sizeLabel(f.size)}</span>
+              <button type="button" onClick={() => onRemoveFile(f.id)} className="rounded-full p-0.5 text-(--text-muted) hover:bg-(--surface-2) hover:text-(--text)" aria-label={`${f.name} entfernen`}><X className="h-3.5 w-3.5" /></button>
+            </span>
+          ))}
+          {reading ? <span className="inline-flex items-center gap-1.5 px-1 py-1 text-[12.5px] text-(--text-muted)"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Datei wird gelesen …</span> : null}
+        </div>
+      ) : null}
       <div className="glass-strong flex items-end gap-2 rounded-[22px] p-1.5 pl-2 shadow-[0_10px_30px_-14px_rgb(0_0_0/0.25)]">
+        <button type="button" onClick={() => void pick()} disabled={disabled || running} className="mb-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-(--text-muted) transition-colors hover:bg-(--surface-2) hover:text-(--text) disabled:opacity-50" aria-label="Datei anhängen" title="Datei anhängen – oder einfach hineinziehen">
+          <Paperclip className="h-4 w-4" />
+        </button>
         <textarea
           ref={ref}
           rows={1}
@@ -290,7 +423,8 @@ function Composer({ disabled, busy, running, onSend, onStop, autoFocus, compact 
           disabled={disabled}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKey}
-          placeholder={disabled ? "Atlas ist noch nicht eingerichtet" : busy && !running ? "Bestätige oder schreib etwas Neues …" : "Frag Atlas …"}
+          onPaste={onPaste}
+          placeholder={disabled ? "Atlas ist noch nicht eingerichtet" : busy && !running ? "Bestätige oder schreib etwas Neues …" : files.length ? "Was soll Atlas damit tun? (oder einfach senden)" : "Frag Atlas …"}
           aria-label="Nachricht an Atlas"
           className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2 py-2.5 text-[15px] leading-snug text-(--text) outline-none placeholder:text-(--text-muted) disabled:opacity-60"
         />
@@ -299,12 +433,12 @@ function Composer({ disabled, busy, running, onSend, onStop, autoFocus, compact 
             <Square className="h-3.5 w-3.5 fill-current" />
           </button>
         ) : (
-          <button type="button" onClick={submit} disabled={disabled || !text.trim()} className="mb-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white transition-[transform,background-color] hover:bg-brand-600 active:scale-95 disabled:bg-slate-300 dark:disabled:bg-slate-700" aria-label="Senden" title="Senden">
+          <button type="button" onClick={submit} disabled={disabled || reading || (!text.trim() && !files.length)} className="mb-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white transition-[transform,background-color] hover:bg-brand-600 active:scale-95 disabled:bg-slate-300 dark:disabled:bg-slate-700" aria-label="Senden" title="Senden">
             <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
           </button>
         )}
       </div>
-      {!compact ? <p className="mt-1.5 hidden text-center text-[11px] text-(--text-muted) sm:block">Atlas kann sich irren – prüf wichtige Zahlen. Enter sendet, Shift+Enter macht eine neue Zeile.</p> : null}
+      {!compact ? <p className="mt-1.5 hidden text-center text-[11px] text-(--text-muted) sm:block">Atlas kann sich irren – prüf wichtige Zahlen. Enter sendet, Shift+Enter macht eine neue Zeile. Dateien einfach hineinziehen.</p> : null}
     </div>
   );
 }

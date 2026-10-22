@@ -2,12 +2,14 @@ import { useMemo, useState } from "react";
 import { Clock, Plus } from "lucide-react";
 import { buildTaskTree, flattenTaskTree, taskDescendantIds, timeEntryValueCents, type Task, type TimeEntry } from "@ordo/core";
 import { Button, EmptyState, Select } from "@/components/ui";
-import { useMembers, useProjectRights, useProjectsById } from "../hooks";
+import { useMembers, useProjectRights, useProjectsById, useTimeFilter } from "../hooks";
 import { PeriodPicker, TimeTable, TimeTotals, inRange, periodRange, type Period } from "../TimeTable";
 import type { DetailContext } from "../ProjectDetail";
 
-export function TimesTab({ ctx, tasks, entries }: { ctx: DetailContext; tasks: Task[]; entries: TimeEntry[] }) {
+export function TimesTab({ ctx, tasks, entries: all }: { ctx: DetailContext; tasks: Task[]; entries: TimeEntry[] }) {
   const rights = useProjectRights();
+  const visible = useTimeFilter();
+  const entries = useMemo(() => visible(all), [all, visible]);
   const { active, byId } = useMembers();
   const projects = useProjectsById();
   const [period, setPeriod] = useState<Period>("all");
@@ -39,7 +41,7 @@ export function TimesTab({ ctx, tasks, entries }: { ctx: DetailContext; tasks: T
     <div className="space-y-3">
       <div className="surface flex flex-wrap items-center gap-2 p-3">
         <PeriodPicker value={period} onChange={setPeriod} custom={custom} onCustom={setCustom} />
-        {byId.size ? (
+        {byId.size && rights.canSeeTeamTime ? (
           <Select value={memberId} onChange={(e) => setMemberId(e.target.value)} className="w-40" aria-label="Person">
             <option value="">Alle Personen</option>
             {active.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}

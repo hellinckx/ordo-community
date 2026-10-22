@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { can as canRole, todayIso, type Access, type Area, type Role, type Vault, type VaultStore } from "@ordo/core";
+import { can as canRole, seesAllTime, todayIso, type Access, type Area, type Role, type Vault, type VaultStore } from "@ordo/core";
 import type { ModuleId, OrdoModule } from "@/modules/types";
 import { AtlasToolError, type AtlasTool, type AtlasToolContext, type AtlasToolResult } from "./tools";
 import { COLLECTIONS } from "./data";
@@ -8,6 +8,8 @@ import { readTools, visualTools, type ToolEnv } from "./tools-read";
 import { writeTools } from "./tools-write";
 import { invoiceReadTools } from "./tools-invoice";
 import { integrationTools } from "./tools-integrations";
+import { fileTools } from "./tools-files";
+import { PARTS } from "@/operator";
 import { ATLAS_AREAS, areasOfRole, atLeast, effectiveLevel, type AtlasArea, type AtlasLevel } from "./areas";
 
 export type AtlasPermission = "read" | "confirm" | "auto";
@@ -18,6 +20,8 @@ export interface ToolsetConfig {
   permission: AtlasPermission;
   /** Per-area setting from Einstellungen → Atlas (`settings.atlas.areas`); missing keys use the area default. */
   areas?: Record<string, string>;
+  /** The chat contains file content (from anyone): every change then waits for the person's confirmation. */
+  untrusted?: boolean;
 }
 
 /** What a provider sends to the model for one tool. */
@@ -80,27 +84,32 @@ export function buildToolset(cfg: ToolsetConfig): Toolset {
     moduleNames: cfg.modules.map((m) => (m.id === "basis" ? "Ordo Basis" : `${m.name} – ${m.title}`)),
     level,
   };
-  const builtIn = [...readTools(env), ...invoiceReadTools(env), ...visualTools(env), ...(cfg.permission === "read" ? [] : writeTools(env, can)), ...integrationTools(env, can)].filter((t) => toolAllowed(t, level));
+  const builtIn = [...readTools(env), ...invoiceReadTools(env), ...visualTools(env), ...(cfg.permission === "read" ? [] : writeTools(env, can)), ...integrationTools(env, can), ...(cfg.untrusted ? fileTools(env, cfg.permission !== "read") : [])].filter((t) => toolAllowed(t, level));
   const taken = new Set(builtIn.map((t) => t.name));
-  const extra = cfg.modules
-    .flatMap((m) => m.atlasTools ?? [])
+  // module tools, and – in a chat with files – the tools for files only this edition understands (e.g. the old ERP backup)
+  const extra = [...cfg.modules.flatMap((m) => m.atlasTools ?? []), ...(cfg.untrusted ? PARTS.atlasFiles?.tools ?? [] : [])]
     .filter((t) => !taken.has(t.name) && /^[a-z][a-z0-9_]{0,63}$/.test(t.name))
     .filter((t) => (t.kind === "write" ? cfg.permission !== "read" : true))
     .filter((t) => !t.area || can(t.area, t.need ?? (t.kind === "write" ? "write" : "read")))
     .filter((t) => toolAllowed(t, level))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const tools = [...builtIn, ...extra.filter((t, i, all) => all.findIndex((x) => x.name === t.name) === i)];
+  // a file can contain text that tries to steer Atlas – in a chat with files, every change waits for the person
+  const guard = !!cfg.untrusted;
+  const tools = [...builtIn, ...extra.filter((t, i, all) => all.findIndex((x) => x.name === t.name) === i)].map((t) => (guard && t.kind === "write" && !t.alwaysConfirm ? { ...t, alwaysConfirm: true } : t));
   const raw = tools.map((t) => ({ name: t.name, kind: t.kind, schema: toolJsonSchema(t.input as z.ZodType) }));
-  const strict = pickStrict(raw);
+  // strict slots are limited: tools that ask before every run anyway come last
+  const confirmed = new Set(tools.filter((t) => t.alwaysConfirm).map((t) => t.name));
+  const strict = pickStrict([...raw.filter((r) => !confirmed.has(r.name)), ...raw.filter((r) => confirmed.has(r.name))]);
   const defs: ProviderToolDef[] = tools.map((t, i) => ({ name: t.name, description: t.description, schema: raw[i]!.schema, strict: strict.has(t.name), kind: t.kind }));
   return { tools, defs, byName: new Map(tools.map((t) => [t.name, t])) };
 }
 
 /** Fresh context for one tool call (vault snapshot at call time). */
 export function toolContext(store: VaultStore, role: Role, navigate: (to: string) => void): AtlasToolContext {
-  const vault: Vault = store.vault;
   const profile = store.activeProfile;
-  const member = vault.members.find((m) => m.id === vault.settings.meMemberId && !m.deletedAt);
+  const member = store.vault.members.find((m) => m.id === store.vault.settings.meMemberId && !m.deletedAt);
+  // Mitarbeit sees only their own time entries – in every read tool alike (lists, sums, search, related records)
+  const vault: Vault = seesAllTime(role) ? store.vault : { ...store.vault, timeEntries: store.vault.timeEntries.filter((e) => !!member && e.memberId === member.id) };
   return {
     store,
     vault,
@@ -184,8 +193,13 @@ export const TOOL_LABELS: Record<string, string> = {
   set_task_status: "Aufgabenstatus setzen",
   create_project: "Projekt anlegen",
   book_transaction: "Buchen",
+  approve_documents: "Rechnungen buchen",
+  settle_bank_lines: "Kontoauszug abgleichen",
   create_offer_draft: "Angebot entwerfen",
   create_invoice_draft: "Rechnung entwerfen",
   update_invoice_draft: "Rechnungsentwurf ändern",
   check_invoice: "Rechnung prüfen",
+  read_attachment: "Datei lesen",
+  add_invoice_files: "Rechnungen einlesen",
+  import_old_erp: "Altes ERP übernehmen",
 };

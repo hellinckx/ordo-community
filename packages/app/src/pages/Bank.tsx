@@ -10,6 +10,7 @@ import { TransactionForm, saveTransaction, validateTransaction } from "@/compone
 import { importBankFiles, runReconcile } from "@/services/bankImport";
 import { cls, fmtDate, fmtMoney, fmtPct } from "@/lib/format";
 import { toast } from "@/state/toasts";
+import { useAskAtlas } from "@/atlas/hooks";
 import { CategoryIcon } from "@/lib/icons";
 
 type Filter = "open" | "suggested" | "matched" | "ignored" | "all";
@@ -23,6 +24,7 @@ export default function Bank() {
   const cats = useCategoryMap();
   const cons = useContactMap();
   const navigate = useNavigate();
+  const askAtlas = useAskAtlas();
   const [filter, setFilter] = useState<Filter>("open");
   const [q, setQ] = useState("");
   const [statementId, setStatementId] = useState<string>("all");
@@ -113,6 +115,16 @@ export default function Bank() {
             <Stat label="Ohne Bankbeleg" value={stats.unbankedTransactions.length} sub="Buchungen (Bank) ohne Umsatz" />
             <Stat label="Auszüge" value={statements.length} sub={statements[0]?.iban ? `IBAN ${statements[0].iban.slice(0, 8)}…` : undefined} />
           </div>
+          {stats.unmatched + stats.suggested ? (
+            <div className="surface flex flex-wrap items-center gap-3 px-4 py-3">
+              <Sparkles className="h-5 w-5 shrink-0 text-brand-700 dark:text-brand-400" />
+              <div className="min-w-0 flex-[1_1_16rem] text-sm">
+                <div className="font-medium">{stats.unmatched + stats.suggested} {stats.unmatched + stats.suggested === 1 ? "Umsatz wartet" : "Umsätze warten"} auf dich</div>
+                <div className="text-xs text-(--text-muted)">{[stats.suggested ? `${stats.suggested} Vorschläge zum Bestätigen` : "", stats.unmatched ? `${stats.unmatched} ohne Buchung` : ""].filter(Boolean).join(" · ")}. Atlas ordnet zu, bucht Einnahmen und Ausgaben und sagt dir, wo eine Rechnung fehlt.</div>
+              </div>
+              <Button onClick={() => void askAtlas("Erledige meine offenen Kontoauszugszeilen: Bestätige passende Vorschläge, ordne Umsätze bestehenden Buchungen zu und buche den Rest als Einnahme oder Ausgabe mit passender Kategorie. Private Umsätze und Umbuchungen zwischen eigenen Konten ignorierst du. Zeig mir vorher kurz, was du vorhast, und sag mir danach, wo noch eine Rechnung fehlt oder etwas unklar ist.")}><Sparkles className="h-4 w-4" /> Atlas erledigt das</Button>
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <Tabs value={filter} onChange={setFilter} tabs={[{ id: "open", label: "Offen", badge: stats.unmatched + stats.suggested ? <Badge tone="warning">{stats.unmatched + stats.suggested}</Badge> : undefined }, { id: "suggested", label: "Vorschläge" }, { id: "matched", label: "Zugeordnet" }, { id: "ignored", label: "Ignoriert" }, { id: "all", label: "Alle" }]} />
             <Select value={statementId} onChange={(e) => setStatementId(e.target.value)} className="w-64"><option value="all">Alle Kontoauszüge</option>{[...statements].sort((a, b) => (b.from ?? "").localeCompare(a.from ?? "")).map((s) => <option key={s.id} value={s.id}>{s.from ? `${fmtDate(s.from)} – ${fmtDate(s.to)}` : s.importedAt.slice(0, 10)} · {s.bankName || s.iban || s.format.toUpperCase()}</option>)}</Select>

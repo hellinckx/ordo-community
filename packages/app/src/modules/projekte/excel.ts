@@ -141,7 +141,8 @@ const clock = (minutes: number) => {
 };
 
 /** Builds the project workbook and lets the user save it. Returns false when the save was cancelled. */
-export async function exportProjectXlsx(projectId: string): Promise<boolean> {
+/** onlyMemberId: the time sheet holds only that person's entries (Mitarbeit sees only their own times). */
+export async function exportProjectXlsx(projectId: string, opts: { onlyMemberId?: string | null } = {}): Promise<boolean> {
   const store = requireStore();
   const v = store.vault;
   const project = v.projects.find((p) => p.id === projectId);
@@ -150,7 +151,7 @@ export async function exportProjectXlsx(projectId: string): Promise<boolean> {
   const company = profile?.company.name || profile?.name || "Ordo";
   const customer = project.customerId ? v.contacts.find((c) => c.id === project.customerId) : undefined;
   const tasks = v.tasks.filter((t) => !t.deletedAt && t.projectId === projectId);
-  const entries = v.timeEntries.filter((e) => !e.deletedAt && e.projectId === projectId).sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
+  const entries = v.timeEntries.filter((e) => !e.deletedAt && e.projectId === projectId && (opts.onlyMemberId === undefined || e.memberId === opts.onlyMemberId)).sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
   const milestones = sortMilestones(v.milestones.filter((m) => !m.deletedAt && m.projectId === projectId));
   const invoices = projectInvoices(projectId, v.invoices).sort((a, b) => a.issueDate.localeCompare(b.issueDate));
   const allInvoices = v.invoices.filter((i) => !i.deletedAt && i.projectId === projectId && i.kind !== "offer").sort((a, b) => a.issueDate.localeCompare(b.issueDate));

@@ -10,6 +10,7 @@ import { isTauri } from "@/platform";
 import { openExternal } from "@/components/LegalLinks";
 import { toast } from "@/state/toasts";
 import { CLAUDE_MODELS, DEFAULT_CLAUDE_MODEL, checkClaudeKey } from "./providers/claude";
+import { checkOpenAiKey } from "./providers/openai";
 import { AtlasMark } from "./Chat";
 import { ATLAS_AREAS, areaSetting, roleLevel, type AtlasArea, type AtlasLevel } from "./areas";
 
@@ -42,9 +43,12 @@ export function AtlasSettings() {
           <ProviderOption active={atlas.provider === "claude"} onClick={() => setAtlas({ provider: "claude", model: atlas.provider === "claude" ? atlas.model : "auto" })} title="Claude (Anthropic)" badge={<Badge tone="brand">Empfohlen</Badge>}>
             Funktioniert in der Desktop-App und im Browser. Braucht einen API-Key von console.anthropic.com – ein Claude-Abo von claude.ai lässt sich in fremden Apps wie Ordo nicht verwenden.
           </ProviderOption>
+          <ProviderOption active={atlas.provider === "openai"} onClick={() => setAtlas({ provider: "openai", model: "auto" })} title="OpenAI (API-Key)">
+            Funktioniert in der Desktop-App und im Browser. Braucht einen API-Key von platform.openai.com, abgerechnet wird nach Nutzung über dein OpenAI-Konto.
+          </ProviderOption>
           {isTauri ? (
             <ProviderOption active={atlas.provider === "codex"} onClick={() => setAtlas({ provider: "codex", model: "auto" })} title="ChatGPT über Codex">
-              Nutzt dein ChatGPT-Abo (Plus oder Pro) über die Codex-App auf diesem Computer – kein API-Key nötig. Langsamer als Claude, weil jede Antwort Codex neu startet.
+              Nutzt dein eigenes ChatGPT-Abo (Plus oder Pro) über die Codex-App auf diesem Computer – kein API-Key nötig. Codex läuft im Hintergrund weiter, damit jede Antwort sofort startet.
             </ProviderOption>
           ) : (
             <div className="flex items-start gap-3 rounded-xl border border-dashed border-(--border) p-3 text-sm">
@@ -59,6 +63,7 @@ export function AtlasSettings() {
       </Card>
 
       {atlas.provider === "claude" ? <ClaudeCard editable={editable} apiKey={ai.anthropicApiKey} setKey={setKey} model={atlas.model} setModel={(model) => setAtlas({ model })} /> : null}
+      {atlas.provider === "openai" ? <OpenAiCard editable={editable} apiKey={ai.openaiApiKey} setKey={(openaiApiKey) => mutate((s) => ({ ...s, ai: { ...s.ai, openaiApiKey } }))} model={atlas.openaiModel} setModel={(openaiModel) => setAtlas({ openaiModel })} auto={atlas.model === "auto"} setAuto={(auto) => setAtlas({ model: auto ? "auto" : "fixed" })} /> : null}
       {atlas.provider === "codex" && isTauri ? <CodexCard editable={editable} model={atlas.codexModel} auto={atlas.model === "auto"} setModel={(codexModel) => setAtlas({ codexModel })} setAuto={(auto) => setAtlas({ model: auto ? "auto" : "fixed" })} /> : null}
 
       <Card title="Was Atlas darf">
@@ -98,7 +103,7 @@ export function AtlasSettings() {
           <li>Gespräche liegen verschlüsselt in deinem Tresor und werden wie alles andere mit deinen Geräten synchronisiert.</li>
           <li>Zum KI-Anbieter geht nur, was Atlas für eine Antwort braucht: deine Frage, der bisherige Verlauf dieses Gesprächs und die Daten, die Atlas dafür nachschlägt – nicht dein ganzer Tresor.</li>
           <li>Passwörter, API-Keys, Sync- und KI-Einstellungen sendet Atlas nie mit und kann sie auch nicht ändern.</li>
-          <li>Claude: Die Anfragen gehen direkt von dieser App an Anthropic, mit deinem eigenen API-Key. ChatGPT über Codex: Die Codex-App auf diesem Computer sendet die Anfrage mit deinem ChatGPT-Konto an OpenAI.</li>
+          <li>Claude und OpenAI: Die Anfragen gehen direkt von dieser App an Anthropic bzw. OpenAI, mit deinem eigenen API-Key. ChatGPT über Codex: Die Codex-App auf diesem Computer sendet die Anfrage mit deinem ChatGPT-Konto an OpenAI.</li>
           <li>Es gelten die Datenschutzbedingungen des gewählten Anbieters.</li>
         </ul>
       </Card>
@@ -212,6 +217,54 @@ function ClaudeCard({ editable, apiKey, setKey, model, setModel }: { editable: b
             ))}
           </Select>
         </Field>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" size="sm" onClick={check} loading={checking} disabled={!apiKey.trim()}>Schlüssel prüfen</Button>
+          {result ? <span className={cls("inline-flex items-center gap-1.5 text-sm", result.ok ? "text-emerald-700 dark:text-emerald-400" : "text-red-600")}>{result.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}{result.message}</span> : null}
+        </div>
+      </fieldset>
+    </Card>
+  );
+}
+
+const OPENAI_KEYS_URL = "https://platform.openai.com/api-keys";
+
+function OpenAiCard({ editable, apiKey, setKey, model, setModel, auto, setAuto }: { editable: boolean; apiKey: string; setKey: (k: string) => void; model: string; setModel: (m: string) => void; auto: boolean; setAuto: (a: boolean) => void }) {
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string; models: string[] } | null>(null);
+  const check = async () => {
+    setChecking(true);
+    setResult(null);
+    try {
+      setResult(await checkOpenAiKey(apiKey.trim()));
+    } finally {
+      setChecking(false);
+    }
+  };
+  const models = result?.models.length ? (result.models.includes(model) ? result.models : [model, ...result.models]) : null;
+  return (
+    <Card title="OpenAI">
+      <fieldset disabled={!editable} className="space-y-4">
+        <Field label="OpenAI API-Key" hint="Wird verschlüsselt in deinem Tresor gespeichert. Summa nutzt denselben Schlüssel, wenn du OpenAI zum Lesen von Rechnungen wählst.">
+          <Input type="password" autoComplete="off" spellCheck={false} value={apiKey} onChange={(e) => { setKey(e.target.value); setResult(null); }} placeholder="sk-…" />
+        </Field>
+        <div className="rounded-xl bg-(--surface-2) px-3 py-2.5 text-[13px] text-(--text-muted)">
+          So bekommst du einen Schlüssel: Auf platform.openai.com anmelden, unter „API keys“ einen neuen Schlüssel erstellen und hier einfügen. Abgerechnet wird nach Nutzung über dein OpenAI-Konto – ein ChatGPT-Abo zählt dafür nicht. Wer ChatGPT Plus oder Pro hat, nimmt in der Desktop-App besser „ChatGPT über Codex“.
+          <button type="button" onClick={() => openExternal(OPENAI_KEYS_URL)} className="mt-1.5 flex items-center gap-1 font-medium text-brand-700 hover:underline dark:text-brand-400">
+            platform.openai.com öffnen <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <Field label="Modell" hint={models ? undefined : "Mit „Schlüssel prüfen“ siehst du alle Modelle, die dein Schlüssel verwenden darf."}>
+          {models ? (
+            <Select value={model} onChange={(e) => setModel(e.target.value)}>
+              {models.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </Select>
+          ) : (
+            <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gpt-5.4" spellCheck={false} />
+          )}
+        </Field>
+        <Switch checked={auto} onChange={setAuto} label="Gründlichkeit automatisch wählen" hint="Kurz bei einfachen Fragen, gründlich bei Auswertungen und mehreren Änderungen." />
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" size="sm" onClick={check} loading={checking} disabled={!apiKey.trim()}>Schlüssel prüfen</Button>
           {result ? <span className={cls("inline-flex items-center gap-1.5 text-sm", result.ok ? "text-emerald-700 dark:text-emerald-400" : "text-red-600")}>{result.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}{result.message}</span> : null}

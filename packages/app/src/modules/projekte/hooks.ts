@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { can, ids, nowIso, timeEntryRates, timerFor, timerElapsedMinutes, todayIso, type Member, type Project, type RunningTimer, type Task, type TimeEntry } from "@ordo/core";
+import { can, ids, nowIso, seesAllTime, timeEntryRates, timerFor, timerElapsedMinutes, todayIso, type Member, type Project, type RunningTimer, type Task, type TimeEntry } from "@ordo/core";
 import { useList, useProfile, useVault } from "@/state/hooks";
 import { requireStore } from "@/state/session";
 import { useMe } from "@/modules/registry";
@@ -18,6 +18,8 @@ export interface ProjectRights {
   canOwnTime: boolean;
   /** Budget, costs and margins are visible. */
   canSeeMoney: boolean;
+  /** Everyone's booked time (entries, per person, team utilisation); Mitarbeit sees only their own (seesAllTime). */
+  canSeeTeamTime: boolean;
   canEditTask(t: Task): boolean;
   canEditEntry(e: TimeEntry): boolean;
 }
@@ -37,10 +39,24 @@ export function useProjectRights(): ProjectRights {
       canWriteTime,
       canOwnTime,
       canSeeMoney: can(role, "projects", "write") || can(role, "summa", "read"),
+      canSeeTeamTime: seesAllTime(role),
       canEditTask: (t) => canWrite || (canOwnTasks && !!member && t.assigneeIds.includes(member.id)),
       canEditEntry: (e) => canWriteTime || (canOwnTime && (e.memberId ?? "") === (member?.id ?? "")),
     };
   }, [member, role]);
+}
+
+/**
+ * Time entries a list may show: all of them, or only one's own for Mitarbeit. Totals without names (project hours,
+ * progress) keep using all entries.
+ */
+export function useTimeFilter(): <T extends Pick<TimeEntry, "memberId">>(entries: T[]) => T[] {
+  const { member, role } = useMe();
+  return useMemo(() => {
+    if (seesAllTime(role)) return <T,>(entries: T[]) => entries;
+    const me = member?.id;
+    return <T extends Pick<TimeEntry, "memberId">>(entries: T[]) => entries.filter((e) => !!me && e.memberId === me);
+  }, [member?.id, role]);
 }
 
 /** Active team members, sorted by name, and a map of all (incl. inactive) by id. */

@@ -73,6 +73,12 @@ export interface AtlasTool<I = unknown> {
   alwaysConfirm?: boolean;
   /** One line describing a call before it runs – shown on the chip and on the confirmation card. */
   preview?(input: I, ctx: AtlasToolContext): string;
+  /** More on the confirmation card, e.g. what an import would create – computed on the device. */
+  details?(input: I, ctx: AtlasToolContext): AtlasVisual | null;
+  /** Parts the person can switch off on the confirmation card before running (e.g. the areas of an import). */
+  options?(input: I, ctx: AtlasToolContext): { key: string; label: string; hint?: string; on: boolean }[];
+  /** The input with the choices from `options`. */
+  withOptions?(input: I, choice: Record<string, boolean>): I;
   run(input: I, ctx: AtlasToolContext): Promise<AtlasToolResult> | AtlasToolResult;
 }
 

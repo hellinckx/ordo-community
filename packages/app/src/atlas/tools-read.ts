@@ -6,6 +6,11 @@ import {
   computeUva,
   formatCents,
   periodForDate,
+  seesAllTime,
+  projectAnalytics,
+  projectRisk,
+  projectStats,
+  teamLoad,
   uvaPeriodRange,
   type Vault,
 } from "@ordo/core";
@@ -250,19 +255,78 @@ export function readTools(env: ToolEnv): AtlasTool[] {
         area: "projects",
         atlasArea: "projects",
         run(input, ctx) {
-          const v = ctx.vault;
+          // project totals without names (hours, progress, forecast) come from all entries, like the project page;
+          // anything per person is gated in figuresFor
+          const v = ctx.store.vault;
           const def = COLLECTION_BY_ID.get("projects")!;
+          // forecast and risks from the same calculation as Projekte → Auswertung
+          const outlook = (pid: string) => {
+            const project = v.projects.find((x) => x.id === pid)!;
+            const pTasks = v.tasks.filter((t) => t.projectId === pid && !t.deletedAt);
+            const pEntries = v.timeEntries.filter((e) => e.projectId === pid && !e.deletedAt);
+            const pMilestones = v.milestones.filter((m) => m.projectId === pid && !m.deletedAt);
+            const a = projectAnalytics({ project, tasks: pTasks, entries: pEntries, today: ctx.today });
+            const stats = projectStats({ project, tasks: pTasks, timeEntries: pEntries, milestones: pMilestones, invoices: v.invoices, members: v.members, today: ctx.today });
+            // reasons about money only for roles that see money and invoices – computed without them otherwise
+            const money = (ctx.can("projects", "write") || ctx.can("summa", "read")) && visibleIn(env)("invoices");
+            const risk = projectRisk({ project, stats, forecast: a.forecast, milestones: pMilestones, today: ctx.today, money });
+            const round = (n: number | null) => (n === null ? null : Math.round(n * 10) / 10);
+            return {
+              a,
+              figures: { forecastHours: round(a.forecast.forecastHours), overrunHours: round(a.forecast.overrunHours), hoursPerWeekRecently: round(a.forecast.weeklyHours), expectedEnd: a.forecast.expectedEnd, finishesLate: a.forecast.late, risk: risk ? { level: risk.level, reasons: risk.reasons } : null },
+            };
+          };
           if (input.project) {
             const p = resolveRecord(v, def, ctx.profileId, input.project);
-            const f = figuresFor(env, ctx, projectFigures(v, p.id, ctx.today));
-            return { summary: `Stand von ${f.name}`, data: withEur(f), link: { to: `/projekte/${p.id}`, label: f.name } };
+            const { a, figures } = outlook(p.id);
+            const names = new Map(v.members.map((m) => [m.id, m.name]));
+            const f = figuresFor(env, ctx, {
+              ...projectFigures(v, p.id, ctx.today),
+              ...figures,
+              hoursByPerson: a.people.map((x) => ({ person: x.memberId ? names.get(x.memberId) ?? "?" : "ohne Person", hours: Math.round(x.minutes / 6) / 10, last4WeeksHours: Math.round(x.recentMinutes / 6) / 10 })),
+              workPackages: a.packages.map((x) => ({ number: x.number, title: x.title, estimateHours: x.estimateHours, hoursLogged: Math.round(x.trackedMinutes / 6) / 10, progressPct: Math.round(x.progress * 100), overHours: Math.round(x.overHours * 10) / 10 })),
+            });
+            return { summary: `Stand von ${f.name}`, data: withEur(f), link: { to: `/projekte/${p.id}/auswertung`, label: f.name } };
           }
           const list = recordsOf(v, def, ctx.profileId).filter((p) => p.status === "active" || p.status === "planning" || p.status === "on_hold");
           const rows = list.slice(0, 20).map((p) => {
             const f = projectFigures(v, p.id, ctx.today);
-            return withEur(figuresFor(env, ctx, { id: f.id, name: f.name, status: f.status, customerName: f.customerName, progressPct: f.progressPct, overdueTasks: f.tasks.overdue, hoursLogged: f.hoursLogged, budgetHours: f.budgetHours, hoursUsedPct: f.hoursUsedPct, costUsedPct: f.costUsedPct, endDate: f.endDate, endDatePassed: f.endDatePassed }));
+            const { figures } = outlook(p.id);
+            return withEur(figuresFor(env, ctx, { id: f.id, name: f.name, status: f.status, customerName: f.customerName, progressPct: f.progressPct, overdueTasks: f.tasks.overdue, hoursLogged: f.hoursLogged, budgetHours: f.budgetHours, hoursUsedPct: f.hoursUsedPct, costUsedPct: f.costUsedPct, endDate: f.endDate, endDatePassed: f.endDatePassed, ...figures }));
           });
-          return { summary: `${list.length} laufende Projekte`, data: { total: list.length, projects: rows } };
+          return { summary: `${list.length} laufende Projekte`, data: { total: list.length, projects: rows }, link: { to: "/projekt-auswertung", label: "Projekt-Auswertung" } };
+        },
+      }),
+      defineTool({
+        name: "team_load",
+        description:
+          "Auslastung jeder Person im Team in einem Zeitraum: gebuchte Stunden gegen die Kapazität aus den Wochenstunden, Anteil verrechenbar, offene und überfällige Aufgaben, Stunden pro Projekt. Für Fragen wie \"Wer ist überlastet?\" oder \"Wie ausgelastet war das Team im Oktober?\".",
+        input: z.object({ from: z.string().optional().describe("YYYY-MM-DD, leer = Monatsanfang"), to: z.string().optional().describe("YYYY-MM-DD, leer = heute") }),
+        kind: "read",
+        area: "projects",
+        atlasArea: "projects",
+        run(input, ctx) {
+          // other people's hours and utilisation: only for roles that see everyone's time (not Mitarbeit), team area open
+          if (!visibleIn(env)("timeEntries") || !atLeast(env.level("team"), "read") || !seesAllTime(ctx.role)) {
+            throw new AtlasToolError("Die Auslastung des Teams ist für deine Rolle oder in den Atlas-Einstellungen nicht freigegeben.");
+          }
+          const v = ctx.vault;
+          const from = input.from || `${ctx.today.slice(0, 7)}-01`;
+          const to = input.to || ctx.today;
+          const mine = <T extends { profileId?: string; deletedAt?: string }>(rows: T[]) => rows.filter((r) => !r.deletedAt && r.profileId === ctx.profileId);
+          const names = new Map(v.members.map((m) => [m.id, m.name]));
+          const projectNames = new Map(v.projects.map((p) => [p.id, p.name]));
+          const load = teamLoad({ members: v.members, entries: mine(v.timeEntries), tasks: mine(v.tasks), from, to, today: ctx.today });
+          const h = (min: number) => Math.round(min / 6) / 10;
+          return {
+            summary: `Auslastung ${from} bis ${to}`,
+            data: {
+              from,
+              to,
+              people: load.map((l) => ({ person: names.get(l.memberId) ?? "?", hoursBooked: h(l.bookedMinutes), capacityHours: h(l.capacityMinutes), utilizationPct: Math.round(l.utilization * 100), billablePct: Math.round(l.billableShare * 100), openTasks: l.openTasks, overdueTasks: l.overdueTasks, hoursByProject: Object.entries(l.byProject).map(([pid, min]) => ({ project: projectNames.get(pid) ?? "?", hours: h(min) })) })),
+            },
+            link: { to: "/projekt-auswertung", label: "Projekt-Auswertung" },
+          };
         },
       }),
     );
@@ -410,6 +474,12 @@ function figuresFor<T extends object>(env: ToolEnv, ctx: AtlasToolContext, f: T)
   if (!see("transactions")) drop("expensesNetCents", "incomeNetCents", "costUsedPct");
   if (!see("invoices")) drop("invoicedNetCents");
   if (!see("contacts")) drop("customerName");
+  // forecast and risks come from booked time; hours per person also need the team area and the right to see others' time
+  if (!see("timeEntries")) {
+    drop("hoursByPerson", "forecastHours", "overrunHours", "hoursPerWeekRecently", "expectedEnd", "finishesLate", "risk");
+    if (Array.isArray(out.workPackages)) out.workPackages = (out.workPackages as Record<string, unknown>[]).map(({ hoursLogged: _h, overHours: _o, ...w }) => w);
+  }
+  if (!atLeast(env.level("team"), "read") || !seesAllTime(ctx.role)) drop("hoursByPerson");
   return out as T;
 }
 

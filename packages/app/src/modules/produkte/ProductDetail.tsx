@@ -208,15 +208,15 @@ function MasterForm({ draft, set, product, readOnly, hasBom }: { draft: Master; 
   const level = product ? (levels.get(product.id) ?? 0) : 0;
 
   return (
-    <fieldset disabled={readOnly} className="grid min-w-0 gap-5 lg:grid-cols-3">
-      <div className="space-y-5 lg:col-span-2">
+    <fieldset disabled={readOnly} className="grid max-w-5xl min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="space-y-4">
         <Card title="Allgemein">
           <div className="space-y-4">
             <Group label="Art" hint={draft.kind === "product" ? "Etwas, das du verkaufst – gekauft oder selbst hergestellt." : draft.kind === "material" ? "Was du einkaufst und verbrauchst, etwa für die Produktion." : "Arbeit, die du verrechnest – ohne Lagerbestand."}>
               <Segmented value={draft.kind} onChange={(k) => set({ kind: k, trackStock: k === "service" ? false : draft.kind === "service" ? true : draft.trackStock, unit: k === "service" && draft.unit === "Stk" ? "Std" : k !== "service" && draft.unit === "Std" ? "Stk" : draft.unit })} options={[{ id: "product", label: "Produkt" }, { id: "material", label: "Material" }, { id: "service", label: "Leistung" }]} />
             </Group>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Name" required className="sm:col-span-2">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Name" required className="sm:col-span-3">
                 <Input value={draft.name} autoFocus={!product} onChange={(e) => set({ name: e.target.value })} placeholder={draft.kind === "service" ? "z. B. Designstunde" : draft.kind === "material" ? "z. B. Papier 300 g A1" : "z. B. Plakat A1"} />
               </Field>
               <Field label="Artikelnummer">
@@ -226,12 +226,12 @@ function MasterForm({ draft, set, product, readOnly, hasBom }: { draft: Master; 
                 <Input value={draft.unit} list="ordo-units" onChange={(e) => set({ unit: e.target.value })} />
                 <datalist id="ordo-units">{UNIT_SUGGESTIONS.map((u) => <option key={u} value={u} />)}</datalist>
               </Field>
-              <Field label="Kategorie" className="sm:col-span-2">
+              <Field label="Kategorie">
                 <Input value={draft.category} list="ordo-product-categories" onChange={(e) => set({ category: e.target.value })} placeholder="z. B. Drucksorten" />
                 <datalist id="ordo-product-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
               </Field>
-              <Field label="Beschreibung" hint="Erscheint als Text in Angeboten und Rechnungen." className="sm:col-span-2">
-                <Textarea value={draft.description} onChange={(e) => set({ description: e.target.value })} rows={3} />
+              <Field label="Beschreibung" hint="Erscheint als Text in Angeboten und Rechnungen." className="sm:col-span-3">
+                <Textarea value={draft.description} onChange={(e) => set({ description: e.target.value })} rows={2} />
               </Field>
             </div>
             <Switch checked={draft.active} onChange={(v) => set({ active: v })} label="Aktiv" hint="Inaktive Artikel bleiben erhalten, erscheinen aber nicht mehr in Auswahllisten." disabled={readOnly} />
@@ -282,7 +282,7 @@ function MasterForm({ draft, set, product, readOnly, hasBom }: { draft: Master; 
         </Card>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         <Card title="Lager">
           {service ? (
             <p className="text-sm text-(--text-muted)">Leistungen haben keinen Lagerbestand.</p>

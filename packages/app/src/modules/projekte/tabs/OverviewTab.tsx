@@ -6,7 +6,7 @@ import { useContactMap, useList, useVault } from "@/state/hooks";
 import { cls, fmtDate, fmtMoney, fmtPct } from "@/lib/format";
 import { BILLING, fmtH, fmtHours } from "../labels";
 import { Avatar, InfoRow, ProgressLine } from "../parts";
-import { useMembers, useProjectRights } from "../hooks";
+import { useMembers, useProjectRights, useTimeFilter } from "../hooks";
 import type { DetailContext } from "../ProjectDetail";
 import { sortMilestones } from "../data";
 
@@ -24,7 +24,8 @@ export function OverviewTab({ ctx, tasks, entries, milestones }: { ctx: DetailCo
   const rollups = useMemo(() => taskRollups(tasks, entries), [tasks, entries]);
   const sortedMilestones = useMemo(() => sortMilestones(milestones), [milestones]);
   const upcoming = sortedMilestones.filter((m) => m.status !== "done").slice(0, 4);
-  const recent = useMemo(() => [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)).slice(0, 6), [entries]);
+  const visible = useTimeFilter();
+  const recent = useMemo(() => [...visible(entries)].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)).slice(0, 6), [entries, visible]);
   const taskById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
   const plannedHours = project.budgetHours || s.estimateHours;
   const hoursRatio = plannedHours > 0 ? s.trackedMinutes / 60 / plannedHours : 0;

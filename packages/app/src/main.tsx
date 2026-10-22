@@ -5,6 +5,10 @@ import "@fontsource-variable/geist";
 import "./styles.css";
 import App from "./App";
 import { startUpdateChecks } from "./services/updates";
+import { setupInstall } from "./lib/install";
+
+// the install prompt on Android fires early – catch it before React renders
+setupInstall();
 
 // Theme bootstrap before first paint (avoids flash); real preference is applied after unlock.
 try {

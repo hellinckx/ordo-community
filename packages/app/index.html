@@ -8,10 +8,35 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Ordo" />
-    <meta name="description" content="Ordo – Buchhaltung, Projekte und Lager für Selbstständige und kleine Firmen in Österreich. Lokal und verschlüsselt." />
+    <meta name="description" content="Ordo – Buchhaltung, Projekte und Lager für Selbstständige und kleine Firmen. Lokal und verschlüsselt." />
     <link rel="icon" type="image/png" href="./favicon.png" />
     <link rel="apple-touch-icon" href="./icon-192.png" />
     <title>Ordo</title>
+    <script>
+      // A phone that opens the plain web address first sees that Ordo exists as an app (download page). Links with
+      // a query or hash (sign-in, password reset, deep links), the installed app and the desktop app are left alone.
+      // "?installieren" (from the download page) opens the install dialog, "?browser" stays in the browser for good.
+      (function () {
+        try {
+          var q = location.search;
+          if (q === "?browser" || q === "?installieren") {
+            localStorage.setItem("ordo.mobile.browser", "1");
+            if (q === "?installieren") sessionStorage.setItem("ordo.install", "1");
+            history.replaceState(null, "", location.pathname + location.hash);
+            return;
+          }
+          var ua = navigator.userAgent;
+          var phone = /iPhone|iPad|iPod|Android/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+          var standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+          var plain = /^\/app\/(index\.html)?$/.test(location.pathname) && !q && (!location.hash || location.hash === "#/");
+          // whoever already uses Ordo in this browser (summa.* keys) is not sent away from their data
+          var used = Object.keys(localStorage).some(function (k) { return k.indexOf("summa.") === 0 || k === "ordo.mobile.browser"; });
+          if (phone && plain && !standalone && !window.__TAURI_INTERNALS__ && !used) location.replace("/download/#handy");
+        } catch (e) {
+          /* private mode: just open the app */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

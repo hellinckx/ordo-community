@@ -48,24 +48,30 @@ export function AppShell({ children }: { children: ReactNode }) {
   // pages whose list/chat scrolls inside the page instead of the whole page
   const fullHeight = /^\/(belege|atlas)(\/|$)/.test(location.pathname);
 
-  // Global drag & drop import
+  // Global drag & drop import: files dropped anywhere become invoices – except over areas that take files themselves
+  // (data-own-drop, e.g. the Atlas chat), which show their own hint.
   useEffect(() => {
     let depth = 0;
+    const own = (e: DragEvent) => !!(e.target instanceof Element && e.target.closest("[data-own-drop]"));
     const onEnter = (e: DragEvent) => {
       if (e.dataTransfer?.types.includes("Files")) {
         depth++;
-        setDragging(true);
+        setDragging(!own(e));
       }
     };
     const onLeave = () => {
       depth = Math.max(0, depth - 1);
       if (depth === 0) setDragging(false);
     };
-    const onOver = (e: DragEvent) => e.preventDefault();
+    const onOver = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer?.types.includes("Files")) setDragging(!own(e));
+    };
     const onDrop = async (e: DragEvent) => {
       e.preventDefault();
       depth = 0;
       setDragging(false);
+      if (own(e)) return;
       const files = [...(e.dataTransfer?.files ?? [])];
       if (!files.length) return;
       const picked = await Promise.all(files.map(async (f) => ({ name: f.name, mime: f.type, bytes: new Uint8Array(await f.arrayBuffer()) })));

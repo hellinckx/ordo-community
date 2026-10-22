@@ -10,4 +10,5 @@ export const PARTS: OperatorParts = {
   PlanUpgrade: null,
   joinWaitlist: null,
   deleteAccount: null,
+  atlasFiles: null,
 };

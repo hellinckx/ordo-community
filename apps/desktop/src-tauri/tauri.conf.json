@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Ordo Community",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "identifier": "at.ordo.community",
   "build": {
     "frontendDist": "../../../packages/app/dist",
@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: blob: asset: http://asset.localhost; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost https://api.openai.com https://api.anthropic.com https://*.supabase.co wss://*.supabase.co http://127.0.0.1:* http://localhost:* blob: data:; frame-src 'self' blob: data:; object-src 'self' blob: data:",
+      "csp": "default-src 'self'; img-src 'self' data: blob: asset: http://asset.localhost; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost https://ordo-app.at https://api.openai.com https://api.anthropic.com https://*.supabase.co wss://*.supabase.co http://127.0.0.1:* http://localhost:* blob: data:; frame-src 'self' blob: data:; object-src 'self' blob: data:",
       "assetProtocol": {
         "enable": true,
         "scope": [
@@ -52,7 +52,7 @@
     ],
     "publisher": "Hellinckx Process Simulation e.U.",
     "shortDescription": "Ordo – Buchhaltung, Projekte und Lager an einem Ort.",
-    "longDescription": "Lokale, verschlüsselte Software für Selbstständige und kleine Firmen in Österreich: Summa für die Buchhaltung (UVA, E1a, L1), Projekte und Zeiterfassung, Produkte und Lager, Produktion und Atlas als KI-Assistent.",
+    "longDescription": "Lokale, verschlüsselte Software für Selbstständige und kleine Firmen: Summa für die Buchhaltung (UVA, E1a, L1), Projekte und Zeiterfassung, Produkte und Lager, Produktion und Atlas als KI-Assistent.",
     "windows": {
       "nsis": {
         "languages": [

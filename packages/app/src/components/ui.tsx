@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, Copy, Info, Loader2, X, XCircle } from "lucide-react";
 import { cls, moneyInputValue, parseMoneyInput } from "@/lib/format";
@@ -367,6 +367,61 @@ export function Toaster() {
           </button>
         </div>
       ))}
+    </div>,
+    document.body,
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Floating panel                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Dropdown panel for pickers, rendered into <body> so dialogs and scroll areas never clip it. Same width as
+ * the anchor, opens upwards when there is not enough room below, and its height always fits the window.
+ * Children: a fixed header plus a `min-h-0 flex-1 overflow-y-auto` list.
+ */
+export function Floating({ anchor, open, onClose, children, className }: { anchor: React.RefObject<HTMLElement | null>; open: boolean; onClose: () => void; children: ReactNode; className?: string }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number }>();
+  useLayoutEffect(() => {
+    if (!open) return setPos(undefined);
+    const place = () => {
+      const r = anchor.current?.getBoundingClientRect();
+      if (!r) return;
+      const below = window.innerHeight - r.bottom - 12;
+      const above = r.top - 12;
+      const width = Math.min(Math.max(r.width, 240), window.innerWidth - 16);
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+      setPos(below < 240 && above > below ? { left, width, bottom: window.innerHeight - r.top + 4, maxHeight: Math.min(above, 420) } : { left, width, top: r.bottom + 4, maxHeight: Math.min(below, 420) });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, anchor]);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!anchor.current?.contains(t) && !panel.current?.contains(t)) onClose();
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open, anchor, onClose]);
+  if (!open || !pos) return null;
+  return createPortal(
+    <div
+      ref={panel}
+      style={{ position: "fixed", left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight }}
+      // Escape closes the list, not the dialog behind it
+      onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } }}
+      className={cls("animate-pop-in z-[70] flex flex-col overflow-hidden rounded-2xl border border-(--border) bg-(--surface) text-(--text) shadow-pop", className)}
+    >
+      {children}
     </div>,
     document.body,
   );

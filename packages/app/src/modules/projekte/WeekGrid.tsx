@@ -7,7 +7,7 @@ import { requireStore } from "@/state/session";
 import { toast } from "@/state/toasts";
 import { cls } from "@/lib/format";
 import { WEEKDAYS_SHORT, fmtH } from "./labels";
-import { bookTime, useMembers, useProjectRights } from "./hooks";
+import { bookTime, useMembers, useProjectRights, useTimeFilter } from "./hooks";
 
 type Extra = { projectId: string; taskId?: string };
 
@@ -19,7 +19,9 @@ export function WeekGrid() {
   const profile = useProfile();
   const projects = useList("projects");
   const tasks = useList("tasks");
-  const entries = useList("timeEntries");
+  const visible = useTimeFilter();
+  const allEntries = useList("timeEntries");
+  const entries = useMemo(() => visible(allEntries), [allEntries, visible]);
   const rights = useProjectRights();
   const { active, byId } = useMembers();
   const today = todayIso();

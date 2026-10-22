@@ -7,6 +7,7 @@ import { isTauri } from "@/platform";
 import { useToasts } from "@/state/toasts";
 import { toast } from "@/state/toasts";
 import { OPERATOR } from "@/operator/config";
+import { useSession } from "@/state/session";
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -42,6 +43,31 @@ async function checkDesktop() {
   });
 }
 
+const newer = (a: string, b: string) => a.split(".").map(Number).reduce((r, n, i) => r || n - (b.split(".").map(Number)[i] ?? 0), 0) > 0;
+
+/**
+ * The Mac app is built on GitHub, without the signing key of the Windows updater – so it is not in latest.json.
+ * It looks at the download page instead and offers the new .dmg (installed over the old app, data stays).
+ */
+async function checkMac() {
+  const r = await fetch("https://ordo-app.at/download/version.json", { cache: "no-store" });
+  if (!r.ok) return;
+  const v = (await r.json()) as { mac?: { version?: string }; files?: { mac?: string } };
+  const version = v.mac?.version;
+  if (!version || !newer(version, __APP_VERSION__) || version === offeredVersion) return;
+  offeredVersion = version;
+  useToasts.getState().push({
+    kind: "info",
+    title: `Ordo ${version} ist verfügbar`,
+    body: "Neue Version laden, öffnen und Ordo in den Programme-Ordner ziehen. Deine Daten bleiben erhalten.",
+    timeout: 0,
+    action: {
+      label: "Herunterladen",
+      onClick: () => void useSession.getState().platform?.openUrl(v.files?.mac || "https://ordo-app.at/download/#mac"),
+    },
+  });
+}
+
 function startWeb() {
   if (!("serviceWorker" in navigator)) return;
   import("virtual:pwa-register")
@@ -72,7 +98,8 @@ export function startUpdateChecks() {
   }
   // the community edition is built by whoever runs it – the operator's signed releases are not for it
   if (import.meta.env.DEV || !OPERATOR.updates) return;
-  const run = () => void checkDesktop().catch((e) => console.warn("update check failed", e));
+  const mac = /Macintosh|Mac OS X/.test(navigator.userAgent);
+  const run = () => void (mac ? checkMac() : checkDesktop()).catch((e) => console.warn("update check failed", e));
   setTimeout(run, 5000);
   setInterval(run, CHECK_INTERVAL_MS);
 }

@@ -26,7 +26,7 @@ export default defineConfig({
             manifest: {
               name: "Ordo",
               short_name: "Ordo",
-              description: "Buchhaltung, Projekte und Lager für Selbstständige und kleine Firmen in Österreich – lokal und verschlüsselt.",
+              description: "Buchhaltung, Projekte und Lager für Selbstständige und kleine Firmen – lokal und verschlüsselt.",
               theme_color: "#0a5fe0",
               background_color: "#f5f5f7",
               display: "standalone",

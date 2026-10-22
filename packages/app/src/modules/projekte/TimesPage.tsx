@@ -6,7 +6,7 @@ import { Button, EmptyState, PageHeader, Select, Tabs } from "@/components/ui";
 import { useList } from "@/state/hooks";
 import { requirePlatform } from "@/state/session";
 import { toast } from "@/state/toasts";
-import { useMembers, useNewParam, useProjectRights, useProjectsById } from "./hooks";
+import { useMembers, useNewParam, useProjectRights, useProjectsById, useTimeFilter } from "./hooks";
 import { Stopwatch } from "./Stopwatch";
 import { WeekGrid } from "./WeekGrid";
 import { PERIOD_LABELS, PeriodPicker, TimeTable, TimeTotals, inRange, periodRange, type Period } from "./TimeTable";
@@ -53,7 +53,9 @@ export default function TimesPage() {
 }
 
 function TimeList({ onEdit, onAdd }: { onEdit: (e: TimeEntry) => void; onAdd: () => void }) {
-  const entries = useList("timeEntries");
+  const visible = useTimeFilter();
+  const all = useList("timeEntries");
+  const entries = useMemo(() => visible(all), [all, visible]);
   const tasks = useList("tasks");
   const projects = useProjectsById();
   const rights = useProjectRights();

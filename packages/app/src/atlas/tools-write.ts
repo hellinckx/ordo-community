@@ -4,6 +4,7 @@ import {
   ids,
   lineFromGross,
   nowIso,
+  transactionFromBankLine,
   type EntityCollection,
   type Offer,
   type Project,
@@ -20,6 +21,8 @@ import { zodIssues } from "./schema";
 import type { ToolEnv } from "./tools-read";
 import { atLeast } from "./areas";
 import { invoiceWriteTools } from "./tools-invoice";
+import { bookDocument } from "@/services/booking";
+import { validateTransaction } from "@/components/TransactionForm";
 
 const ISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum als YYYY-MM-DD");
 
@@ -661,6 +664,157 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
             summary: `${i.kind === "income" ? "Einnahme" : "Ausgabe"} „${tx.description}“ über ${(tx.grossCents / 100).toLocaleString("de-AT", { style: "currency", currency: "EUR" })} gebucht`,
             data: { created: true, id: tx.id, netCents: tx.vatLines.reduce((s, l) => s + l.netCents, 0), vatCents: tx.vatLines.reduce((s, l) => s + l.vatCents, 0) },
             link: { to: "/buchungen", label: "Buchungen öffnen" },
+          };
+        },
+      }),
+    );
+  }
+
+  /* ---------------- Eingelesene Rechnungen ---------------- */
+  if (has("summa") && env.defs.some((d) => d.id === "documents") && can("summa", "write")) {
+    tools.push(
+      defineTool({
+        name: "approve_documents",
+        description:
+          "Bucht eingelesene Rechnungen und Bons mit status \"review\" endgültig: Summa hat beim Einlesen schon eine Buchung vorbereitet (transactionId), die hier bestätigt wird. Ist die vorbereitete Kategorie falsch, die Buchung vorher mit update_record korrigieren; ist es in Wahrheit eine Einnahme statt einer Ausgabe, der Person sagen. Vorher mit get_record (documents und die Buchung) prüfen; Unklares (Betrag fehlt, unleserlich) nicht buchen, sondern der Person sagen.",
+        input: z.object({
+          documents: z.array(z.string().describe("id der eingelesenen Rechnung")).min(1).max(40),
+        }),
+        kind: "write",
+        atlasArea: "incoming",
+        reads: ["bookkeeping"],
+        area: "summa",
+        // works on text from third parties (Verwendungszweck, read invoices): one look at the batch before it runs
+        alwaysConfirm: true,
+        preview: (i) => `${i.documents.length} eingelesene Rechnung${i.documents.length === 1 ? "" : "en"} buchen`,
+        run(i, ctx) {
+          const v = ctx.store.vault;
+          const done: string[] = [];
+          const errors: string[] = [];
+          for (const docId of i.documents) {
+            const doc = v.documents.find((d) => d.id === docId && d.profileId === ctx.profileId && !d.deletedAt);
+            const draft = doc?.transactionId ? v.transactions.find((t) => t.id === doc.transactionId && !t.deletedAt) : undefined;
+            if (!doc || doc.status !== "review") {
+              errors.push(`${docId}: nicht zum Prüfen offen`);
+              continue;
+            }
+            if (!draft) {
+              errors.push(`${doc.originalName}: keine vorbereitete Buchung – bitte in Summa öffnen`);
+              continue;
+            }
+            const tx = { ...draft, reviewed: true };
+            const problem = validateTransaction(tx);
+            if (problem) {
+              errors.push(`${doc.originalName}: ${problem}`);
+              continue;
+            }
+            bookDocument(doc, tx, { draftCategoryId: draft.categoryId });
+            done.push(doc.id);
+          }
+          return {
+            summary: `${done.length} Rechnung${done.length === 1 ? "" : "en"} gebucht${errors.length ? `, ${errors.length} brauchen dich` : ""}`,
+            data: { done: done.length, errors },
+            link: { to: "/buchungen", label: "Buchungen öffnen" },
+          };
+        },
+      }),
+    );
+  }
+
+  /* ---------------- Kontoauszüge ---------------- */
+  if (has("summa") && env.defs.some((d) => d.id === "bankLines") && can("summa", "write")) {
+    tools.push(
+      defineTool({
+        name: "settle_bank_lines",
+        description:
+          "Erledigt offene Kontoauszugszeilen (status unmatched/suggested) in einem Schritt: \"match\" ordnet einer bestehenden Buchung zu (target = id der Buchung, z. B. suggestedTransactionId), \"book\" legt aus der Zeile eine neue Einnahme/Ausgabe an (Ordo erkennt Kontakt, Kategorie und USt-Satz selbst; target = Kategorie nur, wenn du es besser weißt), \"ignore\" für private Umsätze oder Umbuchungen zwischen eigenen Konten. Erst mit list_records (bankLines, status) und den Vorschlägen prüfen.",
+        input: z.object({
+          lines: z
+            .array(
+              z.object({
+                line: z.string().describe("id der Kontoauszugszeile"),
+                action: z.enum(["match", "book", "ignore"]),
+                target: z.string().optional().describe("Bei match: id der Buchung. Bei book: Kategorie (id oder Name), nur wenn Ordos Vorschlag falsch ist"),
+              }),
+            )
+            .min(1)
+            .max(60),
+        }),
+        kind: "write",
+        atlasArea: "bank",
+        reads: ["bookkeeping"],
+        area: "summa",
+        // works on text from third parties (Verwendungszweck, read invoices): one look at the batch before it runs
+        alwaysConfirm: true,
+        preview: (i) => {
+          const n = (a: string) => i.lines.filter((l) => l.action === a).length;
+          return [n("match") ? `${n("match")} zuordnen` : "", n("book") ? `${n("book")} neu buchen` : "", n("ignore") ? `${n("ignore")} ignorieren` : ""].filter(Boolean).join(", ") + " (Kontoauszug)";
+        },
+        run(i, ctx) {
+          const v = ctx.store.vault;
+          const p = ctx.profile;
+          const done: string[] = [];
+          const errors: string[] = [];
+          for (const item of i.lines) {
+            const line = v.bankLines.find((l) => l.id === item.line && l.profileId === ctx.profileId && !l.deletedAt);
+            if (!line) {
+              errors.push(`${item.line}: Zeile nicht gefunden`);
+              continue;
+            }
+            const now = nowIso();
+            if (item.action === "ignore") {
+              ctx.store.update("bankLines", line.id, { status: "ignored", updatedAt: now }, "atlas.settle_bank_lines");
+              done.push(line.id);
+              continue;
+            }
+            if (item.action === "match") {
+              const tx = item.target ? v.transactions.find((t) => t.id === item.target && t.profileId === ctx.profileId && !t.deletedAt) : undefined;
+              if (!tx) {
+                errors.push(`${line.id}: Buchung ${item.target ?? "(keine)"} nicht gefunden`);
+                continue;
+              }
+              ctx.store.update("bankLines", line.id, { status: "matched", matchedTransactionId: tx.id, suggestedTransactionId: undefined, updatedAt: now }, "atlas.settle_bank_lines");
+              done.push(line.id);
+              continue;
+            }
+            const contacts = v.contacts.filter((c) => c.profileId === ctx.profileId);
+            const base = transactionFromBankLine(line, ctx.profileId, p.mode, v.categories, contacts, p.vatRegime);
+            const kind = base.kind === "transfer" ? (line.amountCents > 0 ? "income" : "expense") : base.kind;
+            let categoryId = base.categoryId;
+            let rate = base.vatLines[0]?.rate ?? 20;
+            if (item.target) {
+              const pool = v.categories.filter((c) => !c.deletedAt && !c.isArchived && c.kind === kind && (c.mode === "both" || c.mode === p.mode));
+              const q = item.target.toLocaleLowerCase("de");
+              const cat = pool.find((c) => c.id === item.target) ?? pool.find((c) => c.name.toLocaleLowerCase("de") === q) ?? pool.find((c) => c.name.toLocaleLowerCase("de").includes(q));
+              if (!cat) {
+                errors.push(`${line.id}: keine Kategorie „${item.target}“`);
+                continue;
+              }
+              categoryId = cat.id;
+              rate = cat.defaultVatRate;
+            }
+            const ku = kind === "income" && p.vatRegime === "kleinunternehmer";
+            if (ku) rate = 0;
+            try {
+              const tx = validate<Transaction>(def("transactions"), {
+                ...base,
+                kind,
+                categoryId,
+                vatLines: [lineFromGross(base.grossCents, rate as VatRate)],
+                vatTreatment: ku ? "kleinunternehmer" : "standard",
+                notes: "Von Atlas aus dem Kontoauszug gebucht",
+              });
+              ctx.store.insert("transactions", tx, "atlas.settle_bank_lines");
+              ctx.store.update("bankLines", line.id, { status: "booked", matchedTransactionId: tx.id, suggestedTransactionId: undefined, updatedAt: now }, "atlas.settle_bank_lines");
+              done.push(line.id);
+            } catch (e) {
+              errors.push(`${line.id}: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          }
+          return {
+            summary: `${done.length} Kontoauszugszeile${done.length === 1 ? "" : "n"} erledigt${errors.length ? `, ${errors.length} nicht` : ""}`,
+            data: { done: done.length, errors },
+            link: { to: "/bank", label: "Kontoauszüge öffnen" },
           };
         },
       }),

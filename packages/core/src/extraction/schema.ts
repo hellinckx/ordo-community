@@ -133,10 +133,10 @@ export interface PromptCategory {
 
 export function buildExtractionPrompt(opts: { categories: PromptCategory[]; ocrText?: string; ownCompanyName?: string; ownUid?: string; mode: "employee" | "business" }): string {
   const lines: string[] = [];
-  lines.push("Du bist ein präziser Buchhaltungs-Assistent für Österreich. Analysiere den beigefügten Beleg (Rechnung, Kassenbon, Gutschrift, Kontoauszug oder ähnliches) und extrahiere die Daten als JSON gemäß Schema.");
+  lines.push("Du bist ein präziser Buchhaltungs-Assistent (Österreich und Deutschland). Analysiere den beigefügten Beleg (Rechnung, Kassenbon, Gutschrift, Kontoauszug oder ähnliches) und extrahiere die Daten als JSON gemäß Schema.");
   lines.push("Regeln:");
   lines.push("- Beträge als Zahlen in der Belegwährung mit 2 Dezimalstellen (12,50 € → 12.5). Deutsche Zahlenformate (1.234,56) korrekt interpretieren.");
-  lines.push("- Datumsangaben als ISO (YYYY-MM-DD). Österreichisches Format ist TT.MM.JJJJ.");
+  lines.push("- Datumsangaben als ISO (YYYY-MM-DD). Auf Rechnungen steht meist TT.MM.JJJJ.");
   lines.push("- vat_lines: eine Zeile je Steuersatz (A/B/C-Kennzeichnungen auf Kassenbons: A = 20 %, B = 10 %, C = 13 % sind üblich, aber prüfe die Legende). net + vat = brutto je Satz.");
   lines.push("- gross_total ist der tatsächlich zu zahlende Gesamtbetrag (Summe/Gesamt/Total/zu zahlen).");
   lines.push("- vendor_name ist der Aussteller/Händler, nicht der Empfänger.");

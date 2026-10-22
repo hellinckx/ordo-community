@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { ids, nowIso, type Category, type Contact } from "@ordo/core";
 import { useCategories, useContacts, useProfile } from "@/state/hooks";
@@ -6,16 +6,7 @@ import { requireStore } from "@/state/session";
 import { CategoryIcon } from "@/lib/icons";
 import { cls } from "@/lib/format";
 import { nextContactNumberFor } from "@/modules/basis/contactNumber";
-
-function useOutside(ref: React.RefObject<HTMLElement | null>, onOutside: () => void) {
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onOutside();
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [ref, onOutside]);
-}
+import { Floating } from "@/components/ui";
 
 export function CategoryPicker({ value, onChange, kind, className, placeholder = "Kategorie wählen …", autoFocus, id }: { value: string | undefined; onChange: (id: string | undefined, cat?: Category) => void; kind: "income" | "expense"; className?: string; placeholder?: string; autoFocus?: boolean; id?: string }) {
   const cats = useCategories(kind);
@@ -23,7 +14,7 @@ export function CategoryPicker({ value, onChange, kind, className, placeholder =
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  useOutside(ref, () => setOpen(false));
+  const close = useCallback(() => setOpen(false), []);
   const selected = cats.find((c) => c.id === value);
   const newName = q.trim();
   const canCreate = newName.length >= 2 && !cats.some((c) => c.name.toLowerCase() === newName.toLowerCase());
@@ -64,13 +55,12 @@ export function CategoryPicker({ value, onChange, kind, className, placeholder =
           <span className="flex-1 text-slate-400">{placeholder}</span>
         )}
       </button>
-      {open ? (
-        <div className="animate-pop-in absolute left-0 right-0 z-40 mt-1 max-h-80 overflow-hidden rounded-xl border border-(--border) bg-(--surface) shadow-pop">
-          <div className="flex items-center gap-2 border-b border-(--border) px-3">
+      <Floating anchor={ref} open={open} onClose={close}>
+          <div className="flex shrink-0 items-center gap-2 border-b border-(--border) px-3">
             <Search className="h-4 w-4 text-slate-400" />
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Suchen oder neu anlegen …" className="h-9 flex-1 bg-transparent text-sm outline-none" onKeyDown={(e) => { if (e.key === "Enter" && canCreate && !filtered.length) createNew(); }} />
           </div>
-          <div className="max-h-64 overflow-y-auto py-1">
+          <div className="min-h-0 flex-1 overflow-y-auto py-1">
             {groups.map(([g, list]) => (
               <div key={g}>
                 <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-(--text-muted)">{g}</div>
@@ -92,8 +82,7 @@ export function CategoryPicker({ value, onChange, kind, className, placeholder =
               </button>
             ) : null}
           </div>
-        </div>
-      ) : null}
+      </Floating>
     </div>
   );
 }
@@ -104,7 +93,7 @@ export function ContactPicker({ value, onChange, kind, className, placeholder = 
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  useOutside(ref, () => setOpen(false));
+  const close = useCallback(() => setOpen(false), []);
   const selected = contacts.find((c) => c.id === value);
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -133,13 +122,12 @@ export function ContactPicker({ value, onChange, kind, className, placeholder = 
           </button>
         ) : null}
       </div>
-      {open ? (
-        <div className="animate-pop-in absolute left-0 right-0 z-40 mt-1 overflow-hidden rounded-xl border border-(--border) bg-(--surface) shadow-pop">
-          <div className="flex items-center gap-2 border-b border-(--border) px-3">
+      <Floating anchor={ref} open={open} onClose={close}>
+          <div className="flex shrink-0 items-center gap-2 border-b border-(--border) px-3">
             <Search className="h-4 w-4 text-slate-400" />
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Suchen oder neu anlegen …" className="h-9 flex-1 bg-transparent text-sm outline-none" onKeyDown={(e) => { if (e.key === "Enter" && newName && !filtered.length) createNew(newName); }} />
           </div>
-          <div className="max-h-56 overflow-y-auto py-1">
+          <div className="min-h-0 flex-1 overflow-y-auto py-1">
             {filtered.map((c) => (
               <button key={c.id} type="button" onClick={() => { onChange(c.id); setOpen(false); setQ(""); }} className={cls("flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-(--surface-2)", c.id === value && "bg-brand-50 dark:bg-brand-900/30")}>
                 <span className="min-w-0 truncate">{c.name}</span>
@@ -153,8 +141,7 @@ export function ContactPicker({ value, onChange, kind, className, placeholder = 
             ) : null}
             {!filtered.length && !newName ? <div className="px-3 py-3 text-center text-sm text-(--text-muted)">Tippen, um einen Kontakt anzulegen</div> : null}
           </div>
-        </div>
-      ) : null}
+      </Floating>
     </div>
   );
 }

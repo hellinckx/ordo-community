@@ -7,7 +7,7 @@
  */
 import { create } from "zustand";
 import type { RealtimeChannel, SupabaseClient, Session } from "@supabase/supabase-js";
-import { readHeader, openVaultPayload, migrateVault, mergeVaults, nowIso, type VaultStore } from "@ordo/core";
+import { readHeader, openVaultPayload, migrateVault, mergeVaults, mergeSettings, nowIso, type VaultStore } from "@ordo/core";
 import { useSession } from "@/state/session";
 import { toast } from "@/state/toasts";
 import { SUMMA_SYNC_DEFAULT, SUMMA_WEB_URL } from "@/config";
@@ -379,11 +379,12 @@ export const useSync = create<SyncState>((set, get) => ({
         const { header, payload } = readHeader(bytes);
         const json = await openVaultPayload(header, (store as unknown as { masterKey: CryptoKey }).masterKey, payload);
         const remote = migrateVault(JSON.parse(json));
+        // settings travel too (AI keys, Atlas, connections, theme …), area by area; folder paths stay on this device
         if (!localChanged) {
-          store.mutate((v) => Object.assign(v, { ...remote, settings: { ...remote.settings, watchFolders: v.settings.watchFolders } }));
+          store.mutate((v) => Object.assign(v, { ...remote, settings: mergeSettings(v.settings, remote.settings, "remote") }));
         } else {
           const { vault: merged, added, updated } = mergeVaults(store.vault, remote);
-          store.mutate((v) => Object.assign(v, { ...merged, settings: { ...v.settings } }));
+          store.mutate((v) => Object.assign(v, { ...merged, settings: mergeSettings(v.settings, remote.settings, "local") }));
           if (!opts.silent) toast.info("Sync: Änderungen zusammengeführt", `${added} neu, ${updated} aktualisiert`);
         }
         await logEntry("pull", true, undefined, bytes.byteLength);

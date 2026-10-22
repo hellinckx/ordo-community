@@ -195,6 +195,9 @@ export const ContactSchema = z.object({
   active: z.boolean().optional(),
   /** Logo or photo – an attachment in the vault. */
   logoAttachmentId: z.string().optional(),
+  /** Agreed to receive the newsletter (needed for marketing e-mails, TKG § 174) – and when. */
+  newsletter: z.boolean().optional(),
+  newsletterConsentAt: z.string().optional(),
   legacyRef,
 });
 export type Contact = z.infer<typeof ContactSchema>;
@@ -464,6 +467,10 @@ export const InvoiceSchema = z.object({
   discountText: z.string().optional(),
   servicePeriodStart: isoDate.optional(),
   servicePeriodEnd: isoDate.optional(),
+  /** Sent by e-mail from Ordo (E-Mail module): when and to whom; last payment reminder. */
+  emailedAt: z.string().optional(),
+  emailedTo: z.string().optional(),
+  remindedAt: z.string().optional(),
   legacyRef,
 });
 export type Invoice = z.infer<typeof InvoiceSchema>;
@@ -575,6 +582,29 @@ export const NotificationPrefsSchema = z.object({
 });
 export type NotificationPrefs = z.infer<typeof NotificationPrefsSchema>;
 
+/**
+ * E-mail through the person's own Brevo account (free plan: 300 e-mails a day): invoices with PDF, payment
+ * reminders and newsletters. Mails go from this device straight to Brevo – Ordo as a company sees none of it.
+ */
+export const EmailSettingsSchema = z.object({
+  provider: z.enum(["none", "brevo"]).default("none"),
+  brevoApiKey: z.string().default(""),
+  senderName: z.string().default(""),
+  /** Must be a sender verified in Brevo. */
+  senderEmail: z.string().default(""),
+  replyTo: z.string().default(""),
+  /** Copy of every invoice mail to the sender. */
+  bccSelf: z.boolean().default(true),
+  /** Placeholders: {nummer} {kunde} {betrag} {faellig} {firma} */
+  invoiceSubject: z.string().default("Rechnung {nummer}"),
+  invoiceText: z.string().default("Guten Tag,\n\nim Anhang finden Sie unsere Rechnung {nummer} über {betrag}, fällig am {faellig}.\n\nVielen Dank für Ihren Auftrag!\n\nFreundliche Grüße\n{firma}"),
+  reminderSubject: z.string().default("Zahlungserinnerung: Rechnung {nummer}"),
+  reminderText: z.string().default("Guten Tag,\n\nunsere Rechnung {nummer} über {betrag} war am {faellig} fällig. Vielleicht ist sie untergegangen – wir freuen uns über die Zahlung in den nächsten Tagen. Die Rechnung liegt nochmals bei.\n\nFalls Sie bereits bezahlt haben, betrachten Sie diese Nachricht bitte als gegenstandslos.\n\nFreundliche Grüße\n{firma}"),
+  /** Brevo contact list the newsletter goes to (created on first sync). */
+  brevoListId: z.number().int().optional(),
+});
+export type EmailSettings = z.infer<typeof EmailSettingsSchema>;
+
 export const SettingsSchema = z.object({
   locale: z.string().default("de-AT"),
   theme: z.enum(["system", "light", "dark"]).default("system"),
@@ -606,6 +636,8 @@ export const SettingsSchema = z.object({
   /** Connections to other programs (Einstellungen → Schnittstellen). */
   integrations: z.array(IntegrationSchema).default([]),
   localApi: LocalApiSettingsSchema.default(() => LocalApiSettingsSchema.parse({})),
+  /** E-Mail module: own Brevo account. */
+  email: EmailSettingsSchema.default(() => EmailSettingsSchema.parse({})),
   /** Small UI choices that should follow the user across devices. */
   ui: z
     .object({
@@ -613,6 +645,8 @@ export const SettingsSchema = z.object({
       collapsedNav: z.array(z.string()).default([]),
     })
     .default(() => ({ hideUpgrade: false, collapsedNav: [] })),
+  /** When each settings area last changed ("ai" → ISO time), set by VaultStore.mutate – sync keeps the newer one per area. */
+  stamps: z.record(z.string(), z.string()).default({}),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 

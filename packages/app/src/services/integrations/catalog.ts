@@ -25,7 +25,7 @@ export const CATALOG: CatalogEntry[] = [
   {
     id: "bmd",
     name: "BMD NTCS",
-    who: "Viele Steuerberatungskanzleien in Österreich",
+    who: "Viele Steuerberatungskanzleien",
     ways: ["file"],
     steps: [
       "Export & Sicherung → „BMD-Buchungen“ wählen, Jahr oder Zeitraum angeben, Datei speichern.",
@@ -37,7 +37,7 @@ export const CATALOG: CatalogEntry[] = [
   {
     id: "rzl",
     name: "RZL",
-    who: "Verbreitete Kanzleisoftware in Österreich",
+    who: "Verbreitete Kanzleisoftware",
     ways: ["file"],
     steps: [
       "Ein eigenes RZL-Format gibt es in Ordo noch nicht. Frag deine Kanzlei, ob sie den BMD-Export oder den Steuerberater-Export (CSV mit Konto und Gegenkonto) einlesen kann.",
@@ -105,7 +105,7 @@ export const CATALOG: CatalogEntry[] = [
   {
     id: "mesonic",
     name: "Mesonic WinLine",
-    who: "Österreichisches ERP im Mittelstand",
+    who: "ERP im Mittelstand",
     ways: ["file", "api"],
     steps: ["Kunden und Artikel als CSV/Excel aus WinLine exportieren und unter Einstellungen → Daten übernehmen einlesen.", "Live: über n8n oder ein Skript an die lokale Ordo-Schnittstelle."],
     setup: "api_key",

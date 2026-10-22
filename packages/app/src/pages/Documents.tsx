@@ -17,6 +17,7 @@ import { EnableClaudeDialog } from "@/components/AiProviderSetup";
 import { FolderLinkButton, FolderLinks } from "@/components/FolderLinks";
 import { aiReadiness, type AiReadiness } from "@/services/extraction";
 import { rereadSummary, useAiReread, type RereadScope } from "@/services/aiReread";
+import { useAskAtlas } from "@/atlas/hooks";
 
 type Filter = "review" | "all" | "approved" | "rejected" | "error";
 type Direction = "eingang" | "ausgang";
@@ -36,6 +37,7 @@ export default function Documents() {
   const txs = useList("transactions");
   const profile = useProfile();
   const navigate = useNavigate();
+  const askAtlas = useAskAtlas();
   const { id } = useParams();
   const [params] = useSearchParams();
   const [filter, setFilter] = useState<Filter>("review");
@@ -140,6 +142,16 @@ export default function Documents() {
       ) : null}
       <RereadPanel />
       <RereadDialog open={rereadOpen} onClose={() => setRereadOpen(false)} scopes={rereadScopes} />
+      {reviewCount > 1 ? (
+        <div className="surface flex flex-wrap items-center gap-3 px-4 py-3">
+          <Sparkles className="h-5 w-5 shrink-0 text-brand-700 dark:text-brand-400" />
+          <div className="min-w-0 flex-[1_1_16rem] text-sm">
+            <div className="font-medium">{reviewCount} Rechnungen warten auf dich</div>
+            <div className="text-xs text-(--text-muted)">Atlas prüft die vorbereiteten Buchungen, bucht Eindeutiges und sagt dir, wo etwas fehlt oder unklar ist.</div>
+          </div>
+          <Button onClick={() => void askAtlas(dir === "ausgang" ? "Prüf meine offenen ausgehenden Rechnungen: Buch alles, was eindeutig ist, als Einnahme und sag mir, wo etwas fehlt oder unklar ist." : "Prüf meine offenen eingehenden Rechnungen: Buch alles, was eindeutig ist, mit passender Kategorie und sag mir, wo etwas fehlt oder unklar ist – etwa ein Betrag, eine Rechnungsnummer oder ob es eigentlich eine Einnahme ist.")}><Sparkles className="h-4 w-4" /> Atlas erledigt das</Button>
+        </div>
+      ) : null}
       <Tabs
         value={filter}
         onChange={setFilter}

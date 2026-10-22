@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
 import { can, isStockTracked, stockLevels, toCsv, type Product, type ProductKind, type StockMoveKind, type VatRate } from "@ordo/core";
 import { useList } from "@/state/hooks";
 import { requirePlatform } from "@/state/session";
 import { useMe } from "@/modules/registry";
-import { Badge } from "@/components/ui";
+import { Badge, Floating } from "@/components/ui";
 import { cls } from "@/lib/format";
 import { toast } from "@/state/toasts";
 
@@ -149,14 +149,7 @@ export function ProductPicker({ value, onChange, filter, placeholder = "Artikel 
   const [open, setOpen] = useState(!!autoFocus);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
   const selected = products.find((p) => p.id === value);
   const options = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -181,13 +174,12 @@ export function ProductPicker({ value, onChange, filter, placeholder = "Artikel 
           </button>
         ) : null}
       </div>
-      {open ? (
-        <div className="glass-strong animate-pop-in absolute left-0 right-0 z-40 mt-1 overflow-hidden rounded-2xl shadow-pop">
-          <div className="flex items-center gap-2 border-b border-(--glass-border) px-3">
+      <Floating anchor={ref} open={open} onClose={close}>
+          <div className="flex shrink-0 items-center gap-2 border-b border-(--border) px-3">
             <Search className="h-4 w-4 text-slate-400" />
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, Nummer oder Barcode …" className="h-10 flex-1 bg-transparent text-sm outline-none" />
           </div>
-          <div className="max-h-64 overflow-y-auto p-1">
+          <div className="min-h-0 flex-1 overflow-y-auto p-1">
             {options.map((p) => (
               <button key={p.id} type="button" onClick={() => { onChange(p.id, p); setOpen(false); setQ(""); }} className={cls("flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-(--sidebar-hover)", p.id === value && "bg-brand-50 dark:bg-brand-900/30")}>
                 <span className="min-w-0 flex-1">
@@ -199,8 +191,7 @@ export function ProductPicker({ value, onChange, filter, placeholder = "Artikel 
             ))}
             {!options.length ? <div className="px-3 py-4 text-center text-sm text-(--text-muted)">Nichts gefunden</div> : null}
           </div>
-        </div>
-      ) : null}
+      </Floating>
     </div>
   );
 }

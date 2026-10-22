@@ -144,7 +144,7 @@ export function integrationTools(env: ToolEnv, can: AtlasToolContext["can"]): At
       ...base,
       name: "integrations_overview",
       description:
-        "Schnittstellen: welche Wege es für österreichische Programme gibt (BMD, RZL, SAP Business One, SAP S/4HANA, Business Central, E-Rechnung, n8n …) und welche Verbindungen schon eingerichtet sind – ohne Passwörter und Schlüssel. Zuerst aufrufen, wenn jemand ein Programm anbinden will.",
+        "Schnittstellen: welche fertigen Wege es für verbreitete Programme gibt (BMD, RZL, SAP Business One, SAP S/4HANA, Business Central, E-Rechnung, n8n …) und welche Verbindungen schon eingerichtet sind – ohne Passwörter und Schlüssel. Zuerst aufrufen, wenn jemand ein Programm anbinden will.",
       input: z.object({}),
       kind: "read",
       run(_i, ctx) {

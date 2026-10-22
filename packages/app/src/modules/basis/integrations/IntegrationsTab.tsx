@@ -101,7 +101,7 @@ export function IntegrationsTab() {
         )}
       </Card>
 
-      <Card title="Fertige Wege für österreichische Programme">
+      <Card title="Fertige Wege für verbreitete Programme">
         <div className="grid gap-3 md:grid-cols-2">
           {CATALOG.map((c) => <CatalogCard key={c.id} c={c} onSetup={(k) => add(k, c.setup === "api_key" || c.setup === "rest_pull" ? c.name : undefined)} onAtlas={() => void askAtlas(`Hilf mir, Ordo mit ${c.name} zu verbinden. Erklär mir kurz den besten Weg und richte die Verbindung mit mir ein.`)} onVote={() => navigate("/plaene")} />)}
         </div>

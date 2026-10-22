@@ -49,10 +49,12 @@ export const summaModule: OrdoModule = {
   ],
   badges: ({ vault, profile }): Record<string, number> => {
     const docs = vault.documents.filter((d) => !d.deletedAt && d.profileId === profile.id && d.status === "review");
-    if (profile.mode !== "business") return { "/belege": docs.length };
+    // bank lines nobody has looked at yet (no booking, or a suggestion waiting for a yes)
+    const bank = vault.bankLines.filter((l) => !l.deletedAt && l.profileId === profile.id && (l.status === "unmatched" || l.status === "suggested")).length;
+    if (profile.mode !== "business") return { "/belege": docs.length, "/bank": bank };
     const txById = new Map(vault.transactions.map((t) => [t.id, t]));
     const outgoing = docs.filter((d) => documentDirection(d, d.transactionId ? txById.get(d.transactionId) : undefined) === "outgoing").length;
-    return { "/belege": docs.length - outgoing, "/rechnungen": outgoing };
+    return { "/belege": docs.length - outgoing, "/rechnungen": outgoing, "/bank": bank };
   },
   atlasContext:
     "Summa (Buchhaltung): transactions = Einnahmen/Ausgaben (grossCents, vatLines, categoryId, date), documents = eingelesene Rechnungen/Bons, invoices = Rechnungen an Kunden, categories, bankLines = Kontoauszugszeilen, assets = Anlagen.",

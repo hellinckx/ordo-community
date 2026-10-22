@@ -16,6 +16,7 @@ import { ProjectDialog } from "./ProjectDialog";
 import { TaskDialog } from "./TaskDialog";
 import { TimeEntryDialog } from "./TimeEntryDialog";
 import { OverviewTab } from "./tabs/OverviewTab";
+import { AnalyticsTab } from "./tabs/AnalyticsTab";
 import { TasksTab } from "./tabs/TasksTab";
 import { GanttTab } from "./tabs/GanttTab";
 import { MilestonesTab } from "./tabs/MilestonesTab";
@@ -23,10 +24,11 @@ import { TimesTab } from "./tabs/TimesTab";
 import { FilesTab } from "./tabs/FilesTab";
 import { exportProjectXlsx } from "./excel";
 
-export type DetailTab = "uebersicht" | "aufgaben" | "zeitplan" | "meilensteine" | "zeiten" | "angebote" | "rechnungen" | "dateien";
+export type DetailTab = "uebersicht" | "auswertung" | "aufgaben" | "zeitplan" | "meilensteine" | "zeiten" | "angebote" | "rechnungen" | "dateien";
 
 const TABS: { id: DetailTab; label: string }[] = [
   { id: "uebersicht", label: "Übersicht" },
+  { id: "auswertung", label: "Auswertung" },
   { id: "aufgaben", label: "Aufgaben" },
   { id: "zeitplan", label: "Zeitplan" },
   { id: "meilensteine", label: "Meilensteine" },
@@ -96,7 +98,8 @@ export default function ProjectDetail() {
   const runExport = async () => {
     setExporting(true);
     try {
-      const saved = await exportProjectXlsx(project.id);
+      // Mitarbeit exports only their own times (null = no team member on this device: none)
+      const saved = await exportProjectXlsx(project.id, rights.canSeeTeamTime ? {} : { onlyMemberId: rights.member?.id ?? null });
       if (saved) toast.success("Excel-Datei gespeichert");
     } catch (e) {
       toast.error("Export fehlgeschlagen", e instanceof Error ? e.message : String(e));
@@ -179,6 +182,7 @@ export default function ProjectDetail() {
       />
 
       {current === "uebersicht" ? <OverviewTab ctx={ctx} tasks={tasks} entries={entries} milestones={milestones} /> : null}
+      {current === "auswertung" ? <AnalyticsTab ctx={ctx} tasks={tasks} entries={entries} milestones={milestones} /> : null}
       {current === "aufgaben" ? <TasksTab ctx={ctx} tasks={tasks} entries={entries} milestones={milestones} /> : null}
       {current === "zeitplan" ? <GanttTab ctx={ctx} tasks={tasks} entries={entries} milestones={milestones} /> : null}
       {current === "meilensteine" ? <MilestonesTab ctx={ctx} tasks={tasks} entries={entries} milestones={milestones} /> : null}

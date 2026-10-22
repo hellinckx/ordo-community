@@ -3,7 +3,7 @@ import { DEFAULT_CLAUDE_MODEL, claudeModelLabel } from "./providers/claude";
 import type { Effort } from "./providers/types";
 
 export interface Route {
-  provider: "claude" | "codex";
+  provider: "claude" | "openai" | "codex";
   model: string;
   effort: Effort;
   /** For the badge, e.g. "Opus 5.5 · gründlich". */
@@ -38,6 +38,11 @@ export function route(settings: AtlasSettings, userText: string, codexDefault?: 
     const effort = settings.model === "auto" ? pickEffort(userText) : "medium";
     const model = settings.codexModel.trim();
     return { provider: "codex", model, effort, label: `${model || codexDefault || "ChatGPT"} · ${EFFORT_LABEL[effort]}`, auto: settings.model === "auto" };
+  }
+  if (settings.provider === "openai") {
+    const effort = settings.model === "auto" ? pickEffort(userText) : "medium";
+    const model = settings.openaiModel.trim() || "gpt-5.4";
+    return { provider: "openai", model, effort, label: `${model} · ${EFFORT_LABEL[effort]}`, auto: settings.model === "auto" };
   }
   if (settings.model === "auto" || !settings.model.startsWith("claude-")) {
     const effort = pickEffort(userText);

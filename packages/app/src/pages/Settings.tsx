@@ -123,13 +123,16 @@ export default function Settings() {
       <PageHeader title="Einstellungen" subtitle={active.group.module ? `${active.group.title} · nur für dieses Modul` : `${active.group.title} · gilt für ganz Ordo`} />
       <div className="grid gap-5 xl:grid-cols-[232px_minmax(0,1fr)]">
         <nav aria-label="Einstellungen" className="xl:sticky xl:top-0 xl:self-start">
-          <Select value={active.id} onChange={(e) => go(e.target.value)} className="xl:hidden" aria-label="Bereich wählen">
-            {groups.map((g) => (
-              <optgroup key={g.id} label={g.title}>
-                {g.items.map((i) => <option key={i.id} value={i.id}>{i.label}</option>)}
-              </optgroup>
-            ))}
-          </Select>
+          {/* the whole picker hides on wide screens – its arrow sits outside the <select> */}
+          <div className="xl:hidden">
+            <Select value={active.id} onChange={(e) => go(e.target.value)} aria-label="Bereich wählen">
+              {groups.map((g) => (
+                <optgroup key={g.id} label={g.title}>
+                  {g.items.map((i) => <option key={i.id} value={i.id}>{i.label}</option>)}
+                </optgroup>
+              ))}
+            </Select>
+          </div>
           <div className="surface hidden space-y-4 p-2.5 xl:block">
             {groups.map((g) => (
               <div key={g.id}>
@@ -762,7 +765,7 @@ function AboutTab() {
           <li>OCR: Tesseract.js · PDF: pdf.js · Verschlüsselung: Web Crypto API + hash-wasm (Argon2id).</li>
         </ul>
         <div className="mt-4 border-t border-(--border) pt-3">
-          <div className="mb-1 text-xs font-medium text-(--text-muted)">{OPERATOR.provider ? `Anbieter: ${OPERATOR.provider}` : <>Ordo Community Edition · freie Software unter der GNU AGPL-3.0 · <a href={OPERATOR.website} target="_blank" rel="noreferrer" onClick={(e) => { e.preventDefault(); openExternal(OPERATOR.website); }} className="hover:underline">ordo-app.at</a></>}</div>
+          <div className="mb-1 text-xs font-medium text-(--text-muted)">{OPERATOR.provider ? "Ordo · Anbieterangaben im Impressum" : <>Ordo Community Edition · freie Software unter der GNU AGPL-3.0 · <a href={OPERATOR.website} target="_blank" rel="noreferrer" onClick={(e) => { e.preventDefault(); openExternal(OPERATOR.website); }} className="hover:underline">ordo-app.at</a></>}</div>
           <LegalLinks />
         </div>
       </Card>

@@ -1,10 +1,11 @@
-import { CheckSquare, Clock, FileSignature, FolderKanban, FolderPlus, ListPlus, Timer } from "lucide-react";
+import { BarChart3, CheckSquare, Clock, FileSignature, FolderKanban, FolderPlus, ListPlus, Timer } from "lucide-react";
 import { todayIso } from "@ordo/core";
 import OffersPage from "./offers/OffersPage";
 import ProjectsPage from "./ProjectsPage";
 import ProjectDetail from "./ProjectDetail";
 import MyTasksPage from "./MyTasksPage";
 import TimesPage from "./TimesPage";
+import ReportPage from "./ReportPage";
 import { ActiveProjectsWidget, UpcomingWidget, WeekHoursWidget } from "./widgets";
 import { ProjectSettingsTab } from "./SettingsTab";
 import { seedProjekteDemo } from "./seed";
@@ -17,7 +18,7 @@ export const projekteModule: OrdoModule = {
   tagline: "Projekte, Arbeitspakete, Meilensteine, Zeiten und Angebote.",
   description:
     "Plane Projekte mit Arbeitspaketen und Aufgaben, setze Meilensteine, sieh alles im Zeitplan, erfasse Zeiten per Stoppuhr und behalte Budget und Stunden im Blick. Angebote schreibst du direkt im Projekt – angenommene Angebote werden mit einem Klick zur Rechnung in Summa.",
-  features: ["Projekte mit Budget und Kunden", "Arbeitspakete & Aufgaben im Baum, Board und Zeitplan", "Meilensteine", "Zeiterfassung mit Stoppuhr", "Angebote mit PDF", "Projekt-Export nach Excel"],
+  features: ["Projekte mit Budget und Kunden", "Arbeitspakete & Aufgaben im Baum, Board und Zeitplan", "Meilensteine", "Zeiterfassung mit Stoppuhr", "Auswertung: Prognose, Auslastung, Risiken", "Angebote mit PDF", "Projekt-Export nach Excel"],
   icon: FolderKanban,
   tint: "#5856d6",
   defaultInstalled: false,
@@ -28,6 +29,7 @@ export const projekteModule: OrdoModule = {
     { to: "/aufgaben", label: "Meine Aufgaben", short: "Aufgaben", icon: CheckSquare, modes: ["business"], mobileRank: 2 },
     { to: "/zeiten", label: "Zeiterfassung", short: "Zeiten", icon: Timer, modes: ["business"], mobileRank: 2 },
     { to: "/angebote", label: "Angebote", icon: FileSignature, modes: ["business"] },
+    { to: "/projekt-auswertung", label: "Auswertung", icon: BarChart3, modes: ["business"] },
   ],
   routes: [
     { path: "/projekte", element: <ProjectsPage /> },
@@ -36,6 +38,7 @@ export const projekteModule: OrdoModule = {
     { path: "/aufgaben", element: <MyTasksPage /> },
     { path: "/zeiten", element: <TimesPage /> },
     { path: "/angebote", element: <OffersPage /> },
+    { path: "/projekt-auswertung", element: <ReportPage /> },
     { path: "/angebote/:id", element: <OffersPage /> },
   ],
   quickActions: [

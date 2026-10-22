@@ -8,11 +8,13 @@ import type { OrdoModule } from "@/modules/types";
 import { isTauri } from "@/platform";
 import type { AtlasVisual } from "./tools";
 import { areaLevels, buildToolset, previewCall, runTool, toolContext, type AtlasPermission, type Toolset } from "./toolset";
+import { chatHasFiles } from "./attachments";
 import { ATLAS_AREAS, areaSetting } from "./areas";
 import { systemPrompt, turnContext } from "./prompt";
 import { maxTokensFor, route, type Route } from "./router";
 import { createClaudeProvider } from "./providers/claude";
 import { createCodexProvider } from "./providers/codex";
+import { createOpenAiProvider } from "./providers/openai";
 import { AtlasProviderError, type AssistantRaw, type AtlasProvider, type StepResult, type ToolRaw, type UserRaw } from "./providers/types";
 
 /* ------------------------------------------------------------------ */
@@ -60,7 +62,7 @@ export function bindNavigation(navigate: (to: string) => void, path: string) {
 /* ------------------------------------------------------------------ */
 
 export type Readiness =
-  | { ok: true; provider: "claude" | "codex" }
+  | { ok: true; provider: "claude" | "openai" | "codex" }
   | { ok: false; reason: "off" | "consent" | "key" | "desktop" | "locked"; message: string };
 
 interface Env {
@@ -107,14 +109,16 @@ export function readiness(): Readiness {
   if (!v) return { ok: false, reason: "locked", message: "Der Tresor ist gesperrt." };
   const a = v.settings.atlas;
   if (a.provider === "none") return { ok: false, reason: "off", message: "Atlas ist noch nicht eingerichtet. Wähl unter Einstellungen → Atlas einen KI-Anbieter." };
-  if (a.provider === "codex" && (!isTauri || !s.platform?.codex?.chat)) return { ok: false, reason: "desktop", message: "ChatGPT über Codex gibt es nur in der Desktop-App. Hier im Browser geht Atlas mit Claude (API-Key)." };
+  if (a.provider === "codex" && (!isTauri || !s.platform?.codex?.chat)) return { ok: false, reason: "desktop", message: "ChatGPT über Codex gibt es nur in der Desktop-App. Hier im Browser geht Atlas mit einem API-Key von Claude oder OpenAI." };
   if (a.provider === "claude" && !v.settings.ai.anthropicApiKey.trim()) return { ok: false, reason: "key", message: "Für Claude fehlt noch der API-Key (console.anthropic.com)." };
+  if (a.provider === "openai" && !v.settings.ai.openaiApiKey.trim()) return { ok: false, reason: "key", message: "Für OpenAI fehlt noch der API-Key (platform.openai.com)." };
   if (!a.consent) return { ok: false, reason: "consent", message: "Atlas braucht deine Einwilligung, die nötigen Daten an den KI-Anbieter zu senden." };
   return { ok: true, provider: a.provider };
 }
 
 function providerFor(r: Route, store: VaultStore): AtlasProvider {
   if (r.provider === "claude") return createClaudeProvider(store.vault.settings.ai.anthropicApiKey.trim());
+  if (r.provider === "openai") return createOpenAiProvider(store.vault.settings.ai.openaiApiKey.trim());
   return createCodexProvider(useSession.getState().platform?.codex);
 }
 
@@ -239,7 +243,7 @@ export async function decideCall(chatId: string, callId: string, approve: boolea
   if (!chat || !call || call.status !== "pending") return;
   if (approve) {
     const env = currentEnv();
-    const toolset = buildToolset({ modules: env.modules, role: env.role, permission: env.permission, areas: env.areas });
+    const toolset = buildToolset({ modules: env.modules, role: env.role, permission: env.permission, areas: env.areas, untrusted: chatHasFiles(chat) });
     await execute(chatId, toolset, call.id, call.name, call.input, env);
   } else {
     setCall(chatId, callId, { status: "denied", summary: `Abgelehnt: ${call.summary}` });
@@ -282,7 +286,7 @@ async function runLoop(chatId: string) {
     const lastUser = [...chat.messages].reverse().find((m) => m.role === "user");
     const r = route(env.store.vault.settings.atlas, lastUser?.text ?? "");
     patchRun(chatId, { status: "running", text: "", activity: "Denkt nach", route: r, error: undefined, activeCallId: undefined });
-    const toolset = buildToolset({ modules: env.modules, role: env.role, permission: env.permission, areas: env.areas });
+    const toolset = buildToolset({ modules: env.modules, role: env.role, permission: env.permission, areas: env.areas, untrusted: chatHasFiles(chat) });
     const system = systemPrompt(env.modules, env.store.vault.settings.atlas.instructions);
     const provider = providerFor(r, env.store);
     let maxTokens = maxTokensFor(r.effort);

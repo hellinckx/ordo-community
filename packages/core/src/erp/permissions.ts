@@ -55,6 +55,15 @@ export function accessFor(role: Role | undefined, area: Area): Access {
   return ROLE_MATRIX[role ?? "owner"][area];
 }
 
+/**
+ * Sees everyone's booked time – entries, hours per person, team load. Roles that book only their own time
+ * (Mitarbeit: "own") see just their own entries; project totals without names stay visible to them.
+ */
+export function seesAllTime(role: Role | undefined): boolean {
+  const a = accessFor(role, "time");
+  return a === "read" || a === "write" || a === "admin";
+}
+
 /** True when the role has at least the given access in the area. */
 export function can(role: Role | undefined, area: Area, need: Access): boolean {
   return ORDER.indexOf(accessFor(role, area)) >= ORDER.indexOf(need);
