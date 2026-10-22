@@ -1,0 +1,37 @@
+{
+  "name": "@ordo/core",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "exceljs": "^4.4.0",
+    "hash-wasm": "^4.12.0",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "jszip": "^3.10.1",
+    "nanoid": "^5.1.5",
+    "pdfjs-dist": "^5.4.296",
+    "tesseract.js": "^6.0.1",
+    "zod": "^4.1.0",
+    "jsqr": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "license": "AGPL-3.0-only"
+}

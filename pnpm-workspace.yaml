@@ -1,0 +1,11 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+allowBuilds:
+  core-js: false
+  esbuild: true
+  tesseract.js: true
+onlyBuiltDependencies:
+  - esbuild
+  - tesseract.js
+  - core-js

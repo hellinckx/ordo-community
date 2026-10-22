@@ -1,0 +1,257 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: "Geist Variable", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Code", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Ordo blue – the one accent. 700 is the main tone (buttons, links, active states). */
+  --color-brand-50: #f0f6ff;
+  --color-brand-100: #dceaff;
+  --color-brand-200: #bad6ff;
+  --color-brand-300: #86b8ff;
+  --color-brand-400: #4d93ff;
+  --color-brand-500: #2a7af7;
+  --color-brand-600: #156bf0;
+  --color-brand-700: #0a5fe0;
+  --color-brand-800: #0b4fb8;
+  --color-brand-900: #103f8c;
+  --color-brand-950: #0c2552;
+
+  /* "Info" reuses the accent instead of a second colour family. */
+  --color-sky-50: #f0f6ff;
+  --color-sky-100: #dceaff;
+  --color-sky-200: #bad6ff;
+  --color-sky-300: #86b8ff;
+  --color-sky-400: #4d93ff;
+  --color-sky-500: #2a7af7;
+  --color-sky-600: #156bf0;
+  --color-sky-700: #0a5fe0;
+  --color-sky-800: #0b4fb8;
+  --color-sky-900: #103f8c;
+  --color-sky-950: #0c2552;
+
+  /* One cool neutral grey family (Apple-like) for the whole app. */
+  --color-slate-50: #f9f9fb;
+  --color-slate-100: #f2f2f7;
+  --color-slate-200: #e5e5ea;
+  --color-slate-300: #d1d1d6;
+  --color-slate-400: #aeaeb2;
+  --color-slate-500: #8e8e93;
+  --color-slate-600: #636366;
+  --color-slate-700: #48484a;
+  --color-slate-800: #2c2c2e;
+  --color-slate-900: #1c1c1e;
+  --color-slate-950: #0c0c0e;
+
+  --color-accent-400: #ffcc00;
+  --color-accent-500: #ff9f0a;
+
+  --radius-xl: 14px;
+  --radius-2xl: 20px;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 16px -8px rgb(0 0 0 / 0.06);
+  --shadow-pop: 0 24px 60px -16px rgb(0 0 0 / 0.25), 0 4px 14px rgb(0 0 0 / 0.06);
+}
+
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #f2f2f7;
+  --border: #e5e5ea;
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --sidebar: rgb(236 236 241 / 0.78);
+  --sidebar-hover: rgb(0 0 0 / 0.045);
+  --sidebar-active: #ffffff;
+  --glass: rgb(255 255 255 / 0.72);
+  --glass-strong: rgb(255 255 255 / 0.86);
+  --glass-border: rgb(0 0 0 / 0.07);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #0c0c0e;
+  --surface: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --border: #38383a;
+  --text: #f5f5f7;
+  --text-muted: #98989d;
+  --sidebar: rgb(22 22 24 / 0.82);
+  --sidebar-hover: rgb(255 255 255 / 0.06);
+  --sidebar-active: rgb(255 255 255 / 0.1);
+  --glass: rgb(28 28 30 / 0.7);
+  --glass-strong: rgb(36 36 38 / 0.86);
+  --glass-border: rgb(255 255 255 / 0.08);
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: #bad6ff;
+  color: #0c2552;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(142 142 147 / 0.4) transparent;
+}
+
+@utility surface {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-card);
+}
+
+@utility surface-2 {
+  background: var(--surface-2);
+}
+
+@utility text-muted {
+  color: var(--text-muted);
+}
+
+@utility border-default {
+  border-color: var(--border);
+}
+
+@utility focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 4px rgb(10 95 224 / 0.22);
+  border-color: #0a5fe0;
+}
+
+/* Frosted glass for things that float over content: header, menus, dialogs, mobile tab bar. */
+@utility glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+@utility glass-strong {
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--glass-border);
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.18s ease-out both;
+}
+.animate-pop-in {
+  animation: pop-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.animate-slide-up {
+  animation: slide-up 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-pop-in,
+  .animate-slide-up,
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Drag region for the desktop title bar */
+[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}

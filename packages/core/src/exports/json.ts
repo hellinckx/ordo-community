@@ -1,0 +1,55 @@
+import type { Vault } from "../model/types";
+import { ENTITY_COLLECTIONS, VaultSchema } from "../model/types";
+
+export interface DataExport {
+  format: "summa-data";
+  version: number;
+  exportedAt: string;
+  app: string;
+  data: Vault;
+}
+
+/** Plain (decrypted!) JSON export of all data. Attachments are exported separately (ZIP). */
+export function exportJson(vault: Vault, opts: { includeSecrets?: boolean } = {}): Uint8Array {
+  const data: Vault = JSON.parse(JSON.stringify(vault));
+  if (!opts.includeSecrets) {
+    data.settings.ai.openaiApiKey = "";
+    data.settings.ai.anthropicApiKey = "";
+    data.settings.sync.supabaseAnonKey = "";
+  }
+  const out: DataExport = { format: "summa-data", version: data.version, exportedAt: new Date().toISOString(), app: "Summa", data };
+  return new TextEncoder().encode(JSON.stringify(out, null, 2));
+}
+
+export function parseDataExport(bytes: Uint8Array): Vault {
+  const text = new TextDecoder().decode(bytes);
+  const obj = JSON.parse(text) as Partial<DataExport>;
+  if (obj.format !== "summa-data" || !obj.data) throw new Error("Keine gültige Summa-Datenexport-Datei.");
+  return VaultSchema.parse(obj.data);
+}
+
+/**
+ * Merges an imported vault into the current one (entity-level, newest updatedAt wins).
+ * Returns a new Vault object.
+ */
+export function mergeVaults(current: Vault, incoming: Vault): { vault: Vault; added: number; updated: number } {
+  const collections = ENTITY_COLLECTIONS;
+  let added = 0;
+  let updated = 0;
+  const next: Vault = { ...current };
+  for (const c of collections) {
+    const map = new Map<string, { id: string; updatedAt?: string; createdAt?: string }>((current[c] as { id: string }[]).map((e) => [e.id, e]));
+    for (const e of incoming[c] as { id: string; updatedAt?: string; createdAt?: string }[]) {
+      const cur = map.get(e.id);
+      if (!cur) {
+        map.set(e.id, e);
+        added++;
+      } else if ((e.updatedAt ?? e.createdAt ?? "") > (cur.updatedAt ?? cur.createdAt ?? "")) {
+        map.set(e.id, e);
+        updated++;
+      }
+    }
+    (next[c] as unknown[]) = [...map.values()];
+  }
+  return { vault: next, added, updated };
+}
