@@ -70,29 +70,6 @@ export class VaultStore {
     this.masterKey = masterKey;
     this.masterKeyRaw = masterKeyRaw;
     this.vault = vault;
-    this.stampSettings(vault, {});
-  }
-
-  /** Last seen JSON per settings area, to tell which areas a mutation changed. */
-  private settingsSnap = new Map<string, string>();
-
-  /**
-   * Stamps every settings area whose content changed with the vault's updatedAt, so sync can keep the newer area
-   * from either device. Areas whose stamp the mutation set itself (sync merging) keep that stamp.
-   */
-  private stampSettings(next: Vault, prevStamps: Record<string, string>): void {
-    const settings = next.settings as unknown as Record<string, unknown>;
-    const given = next.settings.stamps ?? {};
-    let stamps: Record<string, string> | null = null;
-    for (const k of Object.keys(settings)) {
-      if (k === "stamps") continue;
-      const json = JSON.stringify(settings[k]) ?? "";
-      const before = this.settingsSnap.get(k);
-      this.settingsSnap.set(k, json);
-      if (before === undefined || before === json || given[k] !== prevStamps[k]) continue;
-      (stamps ??= { ...given })[k] = next.updatedAt;
-    }
-    if (stamps) next.settings = { ...next.settings, stamps };
   }
 
   /* ---------------------------------------------------------------- */
@@ -234,11 +211,9 @@ export class VaultStore {
   mutate(fn: (vault: Vault) => void, opts: { audit?: { action: string; entity: string; entityId?: string; details?: string } } = {}): void {
     this.requireKey();
     const next: Vault = { ...this.vault };
-    const prevStamps = { ...(this.vault.settings?.stamps ?? {}) };
     fn(next);
     next.revision = (next.revision ?? 0) + 1;
     next.updatedAt = nowIso();
-    if (next.settings) this.stampSettings(next, prevStamps);
     if (opts.audit) {
       next.auditLog = [
         ...next.auditLog,
