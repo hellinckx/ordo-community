@@ -613,6 +613,8 @@ export const SettingsSchema = z.object({
       collapsedNav: z.array(z.string()).default([]),
     })
     .default(() => ({ hideUpgrade: false, collapsedNav: [] })),
+  /** When each settings area last changed ("ai" → ISO time), set by VaultStore.mutate – sync keeps the newer one per area. */
+  stamps: z.record(z.string(), z.string()).default({}),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 

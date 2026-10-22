@@ -1,6 +1,6 @@
 [package]
 name = "ordo"
-version = "0.4.0"
+version = "0.4.1"
 description = "Ordo – Buchhaltung, Projekte und Lager an einem Ort."
 authors = ["Hellinckx Process Simulation e.U."]
 edition = "2021"
