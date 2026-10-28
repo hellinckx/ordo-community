@@ -19,6 +19,7 @@ import { toast, useToasts } from "@/state/toasts";
 import { fmtMoney } from "@/lib/format";
 import { aiErrorCode, aiErrorMessage, createProvider, getTextExtractor } from "./extraction";
 import { bookDocument, reopenDocument } from "./booking";
+import { PHOTO, PREVIEW, jpgName, shrinkImage } from "@/lib/shrink";
 
 export interface ImportJob {
   id: string;
@@ -170,7 +171,9 @@ async function processOne(job: ImportJob, file: QueuedFile) {
       patchJob(job.id, { status: "duplicate", detail: `Bereits vorhanden: ${dup.originalName}`, documentId: dup.id, finishedAt: Date.now() });
       return;
     }
-    const attachment = await store.putAttachment(profile.id, file.bytes, { name: file.name, mime: file.mime });
+    // big phone photos are stored smaller (still easy to read); PDFs and e-invoices stay exactly as they came
+    const photo = file.mime.startsWith("image/") && file.bytes.byteLength > PHOTO.minBytes ? await shrinkImage(file.bytes, file.mime, PHOTO.maxSide, PHOTO.quality) : null;
+    const attachment = await store.putAttachment(profile.id, photo?.bytes ?? file.bytes, photo ? { name: jpgName(file.name), mime: photo.mime, width: photo.width, height: photo.height } : { name: file.name, mime: file.mime });
     const now = nowIso();
     const doc: SummaDocument = {
       id: job.id,
@@ -233,7 +236,10 @@ async function runExtraction(doc: SummaDocument, bytes: Uint8Array, onStatus: (s
   const confidentRead = (ex: typeof outcome.extraction) => fieldStates(ex, { mode: profile.mode, vatRegime: profile.vatRegime }).filter((f) => f.key !== "category" && f.key !== "invoiceNumber").every((f) => f.state === "ok");
   let previewAttachmentId: string | undefined;
   if (outcome.local.previewPng && outcome.local.kind === "pdf" && !doc.previewAttachmentId) {
-    const prev = await store.putAttachment(profile.id, outcome.local.previewPng, { name: `${name}.preview.png`, mime: "image/png", width: outcome.local.width, height: outcome.local.height });
+    const small = await shrinkImage(outcome.local.previewPng, "image/png", PREVIEW.maxSide, PREVIEW.quality);
+    const prev = small
+      ? await store.putAttachment(profile.id, small.bytes, { name: `${name}.preview.jpg`, mime: small.mime, width: small.width, height: small.height })
+      : await store.putAttachment(profile.id, outcome.local.previewPng, { name: `${name}.preview.png`, mime: "image/png", width: outcome.local.width, height: outcome.local.height });
     previewAttachmentId = prev.id;
   }
   // Draft transaction (unreviewed) so that numbers already show up as "offen" in reports.

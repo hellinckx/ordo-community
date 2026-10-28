@@ -16,6 +16,7 @@ export function exportJson(vault: Vault, opts: { includeSecrets?: boolean } = {}
     data.settings.ai.openaiApiKey = "";
     data.settings.ai.anthropicApiKey = "";
     data.settings.sync.supabaseAnonKey = "";
+    data.settings.email.brevoApiKey = "";
   }
   const out: DataExport = { format: "summa-data", version: data.version, exportedAt: new Date().toISOString(), app: "Summa", data };
   return new TextEncoder().encode(JSON.stringify(out, null, 2));

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import { AlertTriangle, ArrowDownToLine, ArrowLeft, ArrowUpFromLine, Copy, Factory, MoreHorizontal, PackageX, Power, SlidersHorizontal, Trash2 } from "lucide-react";
-import { bomCost, ids, isBelowMinimum, isStockTracked, isWorkOrderOpen, nowIso, ProductSchema, roundQty, stockValue, whereUsed, type Product, type ProductKind, type StockMove, type VatRate } from "@ordo/core";
+import { AlertTriangle, ArrowDownToLine, ArrowLeft, ArrowUpFromLine, Copy, Factory, FileText, MoreHorizontal, PackageX, Power, SlidersHorizontal, Trash2 } from "lucide-react";
+import { bomCost, can, ids, isBelowMinimum, isStockTracked, isWorkOrderOpen, nowIso, ProductSchema, roundQty, stockValue, whereUsed, type Product, type ProductKind, type StockMove, type VatRate } from "@ordo/core";
 import { useContactMap, useList, useProfile } from "@/state/hooks";
 import { requireStore } from "@/state/session";
-import { useIsInstalled } from "@/modules/registry";
+import { useIsInstalled, useMe } from "@/modules/registry";
 import { Badge, Button, Card, ConfirmDialog, EmptyState, Field, Input, Menu, MoneyInput, PageHeader, Select, Stat, Switch, Tabs, Textarea } from "@/components/ui";
 import { ContactPicker } from "@/components/pickers";
 import { cls, fmtDate, fmtMoney, fmtPct } from "@/lib/format";
@@ -327,12 +327,33 @@ function StockTab({ product }: { product: Product }) {
   const levels = useStockLevels();
   const access = useProductAccess();
   const produktion = useIsInstalled("produktion");
+  const { role } = useMe();
+  // invoice numbers and customers only for people who may see the bookkeeping
+  const summa = useIsInstalled("summa") && can(role, "summa", "read");
+  const invoices = useList("invoices");
+  const transactions = useList("transactions");
   const [dialog, setDialog] = useState<MoveMode | null>(null);
   const [deleting, setDeleting] = useState<StockMove | null>(null);
   const level = levels.get(product.id) ?? 0;
   const value = stockValue([product], levels).totalCents;
   const low = isBelowMinimum(product, level);
   const woById = useMemo(() => new Map(workOrders.map((w) => [w.id, w])), [workOrders]);
+  const invById = useMemo(() => new Map(invoices.map((i) => [i.id, i])), [invoices]);
+  const txById = useMemo(() => new Map(transactions.map((t) => [t.id, t])), [transactions]);
+  /** Where a move came from in Summa: outgoing invoice / credit note, or the incoming invoice it was bought with. */
+  const source = (m: StockMove): { to: string; label: string } | undefined => {
+    const inv = m.invoiceId ? invById.get(m.invoiceId) : undefined;
+    if (inv) return { to: `/rechnungen/${inv.id}`, label: `${inv.kind === "credit_note" ? "Gutschrift" : "Rechnung"} ${inv.number}` };
+    const tx = m.transactionId ? txById.get(m.transactionId) : undefined;
+    if (tx) return { to: tx.documentIds[0] ? `/belege/${tx.documentIds[0]}` : "/buchungen", label: tx.invoiceNumber ? `Eingangsrechnung ${tx.invoiceNumber}` : "Eingangsrechnung" };
+    return undefined;
+  };
+  // Invoices that moved this article, newest first, with the net quantity each
+  const byInvoice = useMemo(() => {
+    const net = new Map<string, number>();
+    for (const m of moves) if (m.productId === product.id && m.invoiceId) net.set(m.invoiceId, roundQty((net.get(m.invoiceId) ?? 0) + m.quantity));
+    return [...net].map(([id, qty]) => ({ inv: invById.get(id), qty })).filter((x) => x.inv && !x.inv.deletedAt).sort((a, b) => b.inv!.issueDate.localeCompare(a.inv!.issueDate));
+  }, [moves, product.id, invById]);
 
   // newest first with the stock after each movement
   const rows = useMemo(() => {
@@ -362,15 +383,17 @@ function StockTab({ product }: { product: Product }) {
           <ul className="divide-y divide-(--border)">
             {rows.map(({ m, after }) => {
               const wo = m.workOrderId ? woById.get(m.workOrderId) : undefined;
+              const src = source(m);
               return (
                 <li key={m.id} className="group flex items-center gap-3 px-5 py-2.5 text-sm">
                   <span className="w-20 shrink-0 tabular text-(--text-muted)">{fmtDate(m.date)}</span>
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-1.5">
-                      <Badge tone={m.quantity >= 0 ? "success" : "neutral"}>{MOVE_LABELS[m.kind]}</Badge>
+                      <Badge tone={m.quantity >= 0 ? "success" : "neutral"}>{m.kind === "sale" && m.invoiceId && m.quantity > 0 ? "Rücknahme" : MOVE_LABELS[m.kind]}</Badge>
                       {wo && produktion ? <Link to={`/produktion/${wo.id}`} className="inline-flex items-center gap-1 text-xs text-brand-700 hover:underline dark:text-brand-400"><Factory className="h-3 w-3" />{wo.number}</Link> : null}
+                      {src && summa ? <Link to={src.to} className="inline-flex items-center gap-1 text-xs text-brand-700 hover:underline dark:text-brand-400"><FileText className="h-3 w-3" />{src.label}</Link> : null}
                     </span>
-                    {m.note || m.contactId ? <span className="mt-0.5 block truncate text-xs text-(--text-muted)">{[m.contactId ? contacts.get(m.contactId)?.name : "", m.note].filter(Boolean).join(" · ")}</span> : null}
+                    {m.note || m.contactId ? <span className="mt-0.5 block truncate text-xs text-(--text-muted)">{[m.contactId ? contacts.get(m.contactId)?.name : "", src && summa && m.note === src.label ? "" : m.note].filter(Boolean).join(" · ")}</span> : null}
                   </span>
                   <span className={cls("w-20 shrink-0 text-right tabular font-medium", m.quantity >= 0 ? "text-emerald-700 dark:text-emerald-400" : "")}>{m.quantity >= 0 ? "+" : "−"}{fmtQty(Math.abs(m.quantity))}</span>
                   <span className="hidden w-20 shrink-0 text-right tabular text-(--text-muted) sm:block">{fmtQty(after)}</span>
@@ -383,6 +406,21 @@ function StockTab({ product }: { product: Product }) {
           </ul>
         )}
       </Card>
+      {byInvoice.length && summa ? (
+        <Card title="Über Rechnungen" padded={false}>
+          <ul className="divide-y divide-(--border)">
+            {byInvoice.slice(0, 12).map(({ inv, qty }) => (
+              <li key={inv!.id}>
+                <Link to={`/rechnungen/${inv!.id}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-(--surface-2)">
+                  <span className="w-20 shrink-0 tabular text-(--text-muted)">{fmtDate(inv!.issueDate)}</span>
+                  <span className="min-w-0 flex-1 truncate">{inv!.kind === "credit_note" ? "Gutschrift" : "Rechnung"} {inv!.number}<span className="ml-1.5 text-(--text-muted)">{inv!.customerSnapshot.name}</span></span>
+                  <span className={cls("w-24 shrink-0 text-right tabular", qty > 0 && "text-emerald-700 dark:text-emerald-400")}>{qty ? `${qty > 0 ? "+" : "−"}${fmtQty(Math.abs(qty))} ${product.unit}` : "storniert"}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
       <StockMoveDialog open={!!dialog} onClose={() => setDialog(null)} productId={product.id} mode={dialog ?? "receipt"} lockProduct />
       <ConfirmDialog
         open={!!deleting}

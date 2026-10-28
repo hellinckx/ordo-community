@@ -9,6 +9,7 @@ import { writeTools } from "./tools-write";
 import { invoiceReadTools } from "./tools-invoice";
 import { integrationTools } from "./tools-integrations";
 import { fileTools } from "./tools-files";
+import { askTools } from "./tools-ask";
 import { PARTS } from "@/operator";
 import { ATLAS_AREAS, areasOfRole, atLeast, effectiveLevel, type AtlasArea, type AtlasLevel } from "./areas";
 
@@ -84,7 +85,7 @@ export function buildToolset(cfg: ToolsetConfig): Toolset {
     moduleNames: cfg.modules.map((m) => (m.id === "basis" ? "Ordo Basis" : `${m.name} – ${m.title}`)),
     level,
   };
-  const builtIn = [...readTools(env), ...invoiceReadTools(env), ...visualTools(env), ...(cfg.permission === "read" ? [] : writeTools(env, can)), ...integrationTools(env, can), ...(cfg.untrusted ? fileTools(env, cfg.permission !== "read") : [])].filter((t) => toolAllowed(t, level));
+  const builtIn = [...readTools(env), ...invoiceReadTools(env), ...visualTools(env), ...askTools(), ...(cfg.permission === "read" ? [] : writeTools(env, can)), ...integrationTools(env, can), ...(cfg.untrusted ? fileTools(env, cfg.permission !== "read") : [])].filter((t) => toolAllowed(t, level));
   const taken = new Set(builtIn.map((t) => t.name));
   // module tools, and – in a chat with files – the tools for files only this edition understands (e.g. the old ERP backup)
   const extra = [...cfg.modules.flatMap((m) => m.atlasTools ?? []), ...(cfg.untrusted ? PARTS.atlasFiles?.tools ?? [] : [])]
@@ -193,6 +194,7 @@ export const TOOL_LABELS: Record<string, string> = {
   set_task_status: "Aufgabenstatus setzen",
   create_project: "Projekt anlegen",
   book_transaction: "Buchen",
+  ask_choice: "Rückfrage",
   approve_documents: "Rechnungen buchen",
   settle_bank_lines: "Kontoauszug abgleichen",
   create_offer_draft: "Angebot entwerfen",
@@ -202,4 +204,12 @@ export const TOOL_LABELS: Record<string, string> = {
   read_attachment: "Datei lesen",
   add_invoice_files: "Rechnungen einlesen",
   import_old_erp: "Altes ERP übernehmen",
+  run_all_check: "Alles-Check",
+  team_load: "Auslastung prüfen",
+  integrations_overview: "Verbindungen ansehen",
+  integration_setup: "Verbindung einrichten",
+  integration_update: "Verbindung ändern",
+  integration_test: "Verbindung testen",
+  integration_probe: "Verbindung abfragen",
+  integration_run: "Verbindung ausführen",
 };

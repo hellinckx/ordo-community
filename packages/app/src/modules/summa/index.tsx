@@ -1,5 +1,7 @@
-import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, BarChart3, FilePlus2, Landmark, Package, ReceiptText, Scale } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, BarChart3, FilePlus2, Landmark, Package, ReceiptText, Scale, ShieldCheck } from "lucide-react";
 import { documentDirection } from "@ordo/core";
+import Checkup from "@/pages/Checkup";
+import { allCheckTool } from "./checkTool";
 import { SummaMark } from "@/components/Logo";
 import Documents from "@/pages/Documents";
 import Transactions from "@/pages/Transactions";
@@ -28,6 +30,7 @@ export const summaModule: OrdoModule = {
     { to: "/buchungen", label: "Einnahmen & Ausgaben", short: "Buchungen", icon: ArrowLeftRight, mobileRank: 2 },
     { to: "/steuern", label: "Steuern", icon: Scale, mobileRank: 4 },
     { to: "/analysen", label: "Analysen", icon: BarChart3, mobileRank: 5 },
+    { to: "/pruefung", label: "Alles-Check", icon: ShieldCheck },
     { to: "/bank", label: "Kontoauszüge", icon: Landmark, secondary: true },
     { to: "/anlagen", label: "Anlagen & Abschreibung", icon: Package, modes: ["business"], secondary: true },
   ],
@@ -42,6 +45,7 @@ export const summaModule: OrdoModule = {
     { path: "/steuern", element: <Taxes /> },
     { path: "/steuern/:tab", element: <Taxes /> },
     { path: "/analysen", element: <Reports /> },
+    { path: "/pruefung", element: <Checkup /> },
   ],
   quickActions: [
     { label: "Buchung von Hand", icon: ReceiptText, to: "/buchungen?neu=1" },
@@ -51,11 +55,14 @@ export const summaModule: OrdoModule = {
     const docs = vault.documents.filter((d) => !d.deletedAt && d.profileId === profile.id && d.status === "review");
     // bank lines nobody has looked at yet (no booking, or a suggestion waiting for a yes)
     const bank = vault.bankLines.filter((l) => !l.deletedAt && l.profileId === profile.id && (l.status === "unmatched" || l.status === "suggested")).length;
-    if (profile.mode !== "business") return { "/belege": docs.length, "/bank": bank };
+    // errors of the last Alles-Check (counted when it ran; the page itself always shows the current state)
+    const check = vault.settings.allCheck.lastErrors;
+    if (profile.mode !== "business") return { "/belege": docs.length, "/bank": bank, "/pruefung": check };
     const txById = new Map(vault.transactions.map((t) => [t.id, t]));
     const outgoing = docs.filter((d) => documentDirection(d, d.transactionId ? txById.get(d.transactionId) : undefined) === "outgoing").length;
-    return { "/belege": docs.length - outgoing, "/rechnungen": outgoing, "/bank": bank };
+    return { "/belege": docs.length - outgoing, "/rechnungen": outgoing, "/bank": bank, "/pruefung": check };
   },
+  atlasTools: [allCheckTool],
   atlasContext:
     "Summa (Buchhaltung): transactions = Einnahmen/Ausgaben (grossCents, vatLines, categoryId, date), documents = eingelesene Rechnungen/Bons, invoices = Rechnungen an Kunden, categories, bankLines = Kontoauszugszeilen, assets = Anlagen.",
 };

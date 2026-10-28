@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, ExternalLink, LogIn, LogOut, MonitorDown, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import { ROLE_LABELS, can, type AtlasSettings as AtlasSettingsT, type CodexStatus } from "@ordo/core";
 import { useSettingsMutator, useVault } from "@/state/hooks";
@@ -13,6 +13,9 @@ import { CLAUDE_MODELS, DEFAULT_CLAUDE_MODEL, checkClaudeKey } from "./providers
 import { checkOpenAiKey } from "./providers/openai";
 import { AtlasMark } from "./Chat";
 import { ATLAS_AREAS, areaSetting, roleLevel, type AtlasArea, type AtlasLevel } from "./areas";
+import { ATLAS_SKILLS, skillOn } from "./skills";
+import { TOOL_LABELS, buildToolset } from "./toolset";
+import { requestAtlasConsent } from "./consent";
 
 const CONSOLE_URL = "https://console.anthropic.com/settings/keys";
 
@@ -89,11 +92,14 @@ export function AtlasSettings() {
 
       <AreaAccessCard editable={editable} areas={atlas.areas ?? {}} globalRead={atlas.permission === "read"} setAreas={(areas) => setAtlas({ areas })} />
 
+      <SkillsCard editable={editable} skills={atlas.skills ?? {}} setSkills={(skills) => setAtlas({ skills })} />
+
       <Card title="Einwilligung & eigene Anweisungen">
         <div className="space-y-4">
-          <Switch disabled={!editable} checked={atlas.consent} onChange={(consent) => setAtlas({ consent })} label="Atlas darf die dafür nötigen Daten an den KI-Anbieter senden" hint="Ohne diese Einwilligung antwortet Atlas nicht. Jederzeit widerrufbar." />
-          <Field label="Eigene Anweisungen" hint="Gilt für jedes Gespräch, z. B. „Antworte immer kurz“ oder „Nenne Beträge netto“.">
-            <Textarea disabled={!editable} value={atlas.instructions} onChange={(e) => setAtlas({ instructions: e.target.value })} placeholder="z. B. Antworte immer kurz. Nenne Beträge netto." maxLength={2000} rows={3} />
+          <Switch disabled={!editable || atlas.provider === "none"} checked={atlas.consent} onChange={(consent) => consent ? void requestAtlasConsent() : setAtlas({ consent: false })} label="Atlas darf die dafür nötigen Daten an den KI-Anbieter senden" hint={atlas.consent ? "Einwilligung erteilt. Hier jederzeit widerrufbar." : atlas.provider === "none" ? "Wähle zuerst oben einen KI-Anbieter. Danach kannst du die Datenübertragung prüfen und erlauben." : "Für Antworten von Atlas erforderlich. Beim Einschalten kannst du die Datenübertragung prüfen und ausdrücklich bestätigen – auch direkt im Atlas-Fenster."} />
+          {!atlas.consent && atlas.provider !== "none" ? <Button disabled={!editable} onClick={() => void requestAtlasConsent()}>Einwilligung prüfen und zustimmen</Button> : null}
+          <Field label="Eigene Anweisungen" hint="Gilt für jedes Gespräch, zusätzlich zu den Fähigkeiten oben – z. B. „Sprich mich mit Sie an“.">
+            <Textarea disabled={!editable} value={atlas.instructions} onChange={(e) => setAtlas({ instructions: e.target.value })} placeholder="z. B. Nenne bei Projekten immer auch die offenen Stunden." maxLength={2000} rows={3} />
           </Field>
         </div>
       </Card>
@@ -108,6 +114,45 @@ export function AtlasSettings() {
         </ul>
       </Card>
     </div>
+  );
+}
+
+/** Fähigkeiten: how Atlas answers (switchable), and what it can do right now with the installed modules. */
+function SkillsCard({ editable, skills, setSkills }: { editable: boolean; skills: Record<string, boolean>; setSkills: (s: Record<string, boolean>) => void }) {
+  const modules = useInstalledModules();
+  const { role } = useMe();
+  const atlas = useVault().settings.atlas;
+  const tools = useMemo(() => buildToolset({ modules, role, permission: atlas.permission, areas: atlas.areas }).tools, [modules, role, atlas.permission, atlas.areas]);
+  const label = (name: string) => TOOL_LABELS[name] ?? name.replace(/_/g, " ");
+  const reads = [...new Set(tools.filter((t) => t.kind === "read").map((t) => label(t.name)))];
+  const writes = [...new Set(tools.filter((t) => t.kind === "write").map((t) => label(t.name)))];
+  const chips = (list: string[]) => (
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {list.map((l) => <span key={l} className="rounded-full border border-(--border) bg-(--surface) px-2.5 py-0.5 text-[12.5px]">{l}</span>)}
+    </div>
+  );
+  return (
+    <Card title="Fähigkeiten">
+      <div className="space-y-3">
+        <fieldset disabled={!editable} className="space-y-2">
+          {ATLAS_SKILLS.map((s) => (
+            <Switch key={s.id} checked={skillOn(skills, s)} onChange={(on) => setSkills({ ...skills, [s.id]: on })} label={s.label} hint={s.hint} />
+          ))}
+        </fieldset>
+        <div className="border-t border-(--border) pt-3 text-sm">
+          <div className="font-medium">Was Atlas gerade kann</div>
+          <p className="text-[13px] text-(--text-muted)">Aus den installierten Modulen, deiner Rolle und den Zugriffen oben.</p>
+          <div className="mt-2 text-[13px] text-(--text-muted)">Nachschauen</div>
+          {chips(reads)}
+          {writes.length ? (
+            <>
+              <div className="mt-2 text-[13px] text-(--text-muted)">Ändern{atlas.permission === "confirm" ? " (fragt vorher)" : ""}</div>
+              {chips(writes)}
+            </>
+          ) : null}
+        </div>
+      </div>
+    </Card>
   );
 }
 

@@ -24,7 +24,7 @@ function safe(s: string): string {
 
 /**
  * Packs all receipts of a period into a ZIP, renamed to "YYYY-MM-DD_Lieferant_Betrag_Nr.ext" with an index CSV.
- * Folder structure: Belege/YYYY/MM/.
+ * Folder structure: Rechnungen/YYYY/MM/.
  */
 export async function belegeZip(opts: BelegeZipOptions): Promise<Uint8Array> {
   const JSZip = (await import("jszip")).default;
@@ -43,7 +43,7 @@ export async function belegeZip(opts: BelegeZipOptions): Promise<Uint8Array> {
     if (!bytes) continue;
     const tx = txByDoc.get(d.id);
     const date = tx?.date ?? d.extraction?.fields.invoiceDate ?? d.importedAt.slice(0, 10);
-    const vendor = (tx?.contactId ? contacts.get(tx.contactId) : undefined) ?? d.extraction?.fields.vendorName ?? "Beleg";
+    const vendor = (tx?.contactId ? contacts.get(tx.contactId) : undefined) ?? d.extraction?.fields.vendorName ?? "Rechnung";
     const amount = tx?.grossCents ?? d.extraction?.fields.grossCents ?? 0;
     const ext = d.originalName.includes(".") ? d.originalName.split(".").pop()! : d.mime.split("/")[1] ?? "bin";
     let base = `${date}_${safe(vendor)}_${fromCents(amount).toFixed(2).replace(".", ",")}`;
@@ -51,11 +51,11 @@ export async function belegeZip(opts: BelegeZipOptions): Promise<Uint8Array> {
     let n = 2;
     while (used.has(name)) name = `${base}_${n++}.${ext}`;
     used.add(name);
-    const path = `Belege/${date.slice(0, 4)}/${date.slice(5, 7)}/${name}`;
+    const path = `Rechnungen/${date.slice(0, 4)}/${date.slice(5, 7)}/${name}`;
     zip.file(path, bytes);
     index.push([date, vendor, fromCents(amount), tx ? (tx.categoryId ? (cats.get(tx.categoryId) ?? "") : "") : "", tx?.invoiceNumber ?? d.extraction?.fields.invoiceNumber ?? "", path, d.originalName, d.status]);
   }
-  zip.file("Belege/Index.csv", toCsv(["Datum", "Lieferant", "Betrag", "Kategorie", "Rechnungsnr.", "Datei", "Originalname", "Status"], index));
+  zip.file("Rechnungen/Index.csv", toCsv(["Datum", "Lieferant", "Betrag", "Kategorie", "Rechnungsnr.", "Datei", "Originalname", "Status"], index));
   for (const e of opts.extra ?? []) zip.file(e.path, e.bytes);
   return zip.generateAsync({ type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } });
 }

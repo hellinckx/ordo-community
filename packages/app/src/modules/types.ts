@@ -3,7 +3,7 @@ import type { Mode, Profile, Vault, VaultStore } from "@ordo/core";
 import type { AtlasTool } from "@/atlas/tools";
 
 /** Everything Ordo can install. "basis" is always there and cannot be removed. */
-export type ModuleId = "basis" | "summa" | "projekte" | "produkte" | "produktion";
+export type ModuleId = "basis" | "summa" | "projekte" | "produkte" | "produktion" | "post";
 
 export interface NavItemDef {
   to: string;

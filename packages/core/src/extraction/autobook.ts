@@ -31,7 +31,7 @@ const BLOCKING_WARNINGS: RegExp[] = [
   /nur anhand des größten Betrags/,
   /ergeben nicht den Gesamtbetrag/,
   /stimmen nicht überein/,
-  /Kein plausibles Belegdatum/,
+  /Kein plausibles (Beleg|Rechnungs)datum/,
   /KI-Erkennung fehlgeschlagen/,
 ];
 
@@ -77,7 +77,7 @@ export function decideAutoBook(i: AutoBookInput): AutoBookDecision {
     reasons.push(`Umsatzsteuer unsicher (${pct(conf.vatLines)})`);
   }
 
-  if (ex.fields.documentType !== "invoice" && ex.fields.documentType !== "receipt") reasons.push(`Belegart „${ex.fields.documentType}“ wird nicht automatisch gebucht`);
+  if (ex.fields.documentType !== "invoice" && ex.fields.documentType !== "receipt") reasons.push(`Dokumentart „${ex.fields.documentType}“ wird nicht automatisch gebucht`);
 
   const blocking = ex.warnings.find((w) => BLOCKING_WARNINGS.some((re) => re.test(w)));
   if (blocking) reasons.push(`Hinweis: ${blocking}`);

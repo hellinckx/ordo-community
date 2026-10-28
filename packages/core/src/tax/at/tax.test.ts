@@ -163,6 +163,16 @@ describe("E1a", () => {
 });
 
 describe("L1", () => {
+  it("does not treat gifts and pocket money as salary in the fallback estimate", () => {
+    const p = profile({ mode: "employee" });
+    const salary = tx({ kind: "income", date: "2026-03-05", grossCents: 250000, categoryId: "cat_e_in_gehalt" });
+    const gift = tx({ kind: "income", date: "2026-03-06", grossCents: 7000, categoryId: "cat_e_in_geschenke" });
+    const without = computeL1(p, 2026, [salary], DEFAULT_CATEGORIES, undefined);
+    const withGift = computeL1(p, 2026, [salary, gift], DEFAULT_CATEGORIES, undefined);
+    expect(withGift.incomeCents).toBe(257000);
+    expect(withGift.taxableIncomeEstimateCents).toBe(without.taxableIncomeEstimateCents);
+    expect(withGift.warnings.join(" ")).toContain("Andere Budget-Einnahmen");
+  });
   it("maps employee expenses to Kennzahlen with caps", () => {
     const p = profile({ mode: "employee" });
     const txs = [

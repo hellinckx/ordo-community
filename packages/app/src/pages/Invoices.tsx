@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Check, Copy, Download, FileCode, FileText, Pencil, Plus, Send, Trash2 } from "lucide-react";
-import { ids, nowIso, todayIso, invoiceTotals, invoicePdf, buildEbInterface, lineFromNet, normalizeVatLines, type Invoice, type InvoiceLine, type Transaction, type VatRate, type VatTreatment } from "@ordo/core";
+import { Check, Copy, Download, FileCode, FileText, Mail, Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { ids, nowIso, todayIso, invoiceTotals, invoicePdf, buildEbInterface, lineFromNet, normalizeVatLines, isStockTracked, type Invoice, type InvoiceLine, type Product, type Transaction, type VatRate, type VatTreatment } from "@ordo/core";
 import { useContactMap, useList, useProfile, useVault } from "@/state/hooks";
 import { requirePlatform, requireStore } from "@/state/session";
 import { Badge, Button, ConfirmDialog, DateInput, EmptyState, Field, Input, Modal, MoneyInput, PageHeader, Select, Textarea } from "@/components/ui";
@@ -13,6 +13,11 @@ import { InvoiceModeChooser } from "@/components/InvoiceModeChooser";
 import { ImportedInvoices } from "@/components/ImportedInvoices";
 import { FolderLinks } from "@/components/FolderLinks";
 import { Card } from "@/components/ui";
+import { useIsInstalled, useMe } from "@/modules/registry";
+import { canMailInvoices } from "@/services/email/send";
+import { InvoiceMailDialog } from "@/modules/post/InvoiceMailDialog";
+import { fmtQty, ProductPicker, useStockLevels } from "@/modules/produkte/shared";
+import { bookInvoiceStock, reverseInvoiceStock } from "@/services/invoiceStock";
 
 const STATUS: Record<Invoice["status"], { label: string; tone: "neutral" | "success" | "warning" | "danger" | "info" }> = {
   draft: { label: "Entwurf", tone: "neutral" },
@@ -21,6 +26,9 @@ const STATUS: Record<Invoice["status"], { label: string; tone: "neutral" | "succ
   overdue: { label: "Überfällig", tone: "danger" },
   cancelled: { label: "Storniert", tone: "neutral" },
 };
+
+const LINE_GRID = "grid-cols-[1fr_70px_70px_110px_80px_110px_32px]";
+const LINE_GRID_ARTICLE = "grid-cols-[150px_1fr_70px_70px_110px_80px_110px_32px]";
 
 function nextNumber(pattern: string, n: number, date: string): string {
   return pattern.replace("{YYYY}", date.slice(0, 4)).replace("{YY}", date.slice(2, 4)).replace("{MM}", date.slice(5, 7)).replace(/\{N+\}/, (m) => String(n).padStart(m.length - 2, "0"));
@@ -31,8 +39,14 @@ export default function Invoices() {
   const profile = useProfile();
   const contacts = useContactMap();
   const navigate = useNavigate();
+  const { role } = useMe();
+  const mailInstalled = useIsInstalled("post") && canMailInvoices(role);
+  const [mailing, setMailing] = useState<{ invoice: Invoice; reminder: boolean } | null>(null);
   const { id } = useParams();
   const [confirmDelete, setConfirmDelete] = useState<Invoice | null>(null);
+  const stockMoves = useList("stockMoves");
+  const produkte = useIsInstalled("produkte");
+  const deleteMovesStock = !!confirmDelete && produkte && stockMoves.some((m) => m.invoiceId === confirmDelete.id);
   const editing = id === "neu" ? "new" : id ? invoices.find((i) => i.id === id) : undefined;
   const sorted = useMemo(() => [...invoices].sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number)), [invoices]);
   const open = sorted.filter((i) => i.status === "sent" || i.status === "overdue").reduce((s, i) => s + invoiceTotals(i).grossCents - i.paidCents, 0);
@@ -83,10 +97,11 @@ export default function Invoices() {
                   <td className="whitespace-nowrap px-3 py-2 tabular">{fmtDate(inv.dueDate)}</td>
                   <td className="px-3 py-2"><Badge tone={STATUS[inv.status].tone}>{STATUS[inv.status].label}</Badge></td>
                   <td className="px-3 py-2 text-right tabular font-semibold">{fmtMoney(invoiceTotals(inv).grossCents)}</td>
-                  <td className="px-2 py-2 text-right">
+                  <td className="whitespace-nowrap px-2 py-2 text-right">
                     {inv.status === "sent" || inv.status === "overdue" ? <button title="Als bezahlt markieren" className="rounded-md p-1.5 text-emerald-600 hover:bg-(--surface)" onClick={() => markPaid(inv)}><Check className="h-4 w-4" /></button> : null}
-                    <button className="rounded-md p-1.5 text-(--text-muted) hover:bg-(--surface)" onClick={() => navigate(`/rechnungen/${inv.id}`)}><Pencil className="h-4 w-4" /></button>
-                    <button className="rounded-md p-1.5 text-(--text-muted) hover:bg-(--surface)" onClick={() => setConfirmDelete(inv)}><Trash2 className="h-4 w-4" /></button>
+                    {mailInstalled && inv.kind !== "offer" && inv.status !== "draft" && inv.status !== "cancelled" ? <button title={inv.emailedAt ? `Per E-Mail senden – zuletzt an ${inv.emailedTo}` : "Per E-Mail senden"} aria-label="Per E-Mail senden" className={cls("rounded-md p-1.5 hover:bg-(--surface)", inv.emailedAt ? "text-brand-700 dark:text-brand-400" : "text-(--text-muted)")} onClick={() => setMailing({ invoice: inv, reminder: inv.status === "overdue" || (inv.status === "sent" && inv.dueDate < todayIso()) })}><Mail className="h-4 w-4" /></button> : null}
+                    <button aria-label="Bearbeiten" className="rounded-md p-1.5 text-(--text-muted) hover:bg-(--surface)" onClick={() => navigate(`/rechnungen/${inv.id}`)}><Pencil className="h-4 w-4" /></button>
+                    <button aria-label="Löschen" className="rounded-md p-1.5 text-(--text-muted) hover:bg-(--surface)" onClick={() => setConfirmDelete(inv)}><Trash2 className="h-4 w-4" /></button>
                   </td>
                 </tr>
               ))}
@@ -95,13 +110,21 @@ export default function Invoices() {
         </div>
       )}
       {editing ? <InvoiceEditor invoice={editing === "new" ? undefined : editing} onClose={() => navigate("/rechnungen")} /> : null}
-      <ConfirmDialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} danger title={`Rechnung ${confirmDelete?.number} löschen?`} body="Bei bereits versendeten Rechnungen ist eine Stornierung (Gutschrift) buchhalterisch korrekter." confirmLabel="Löschen" onConfirm={() => { const store = requireStore(); store.softDelete("invoices", confirmDelete!.id); if (confirmDelete!.transactionId) store.softDelete("transactions", confirmDelete!.transactionId); }} />
+      <InvoiceMailDialog invoice={mailing?.invoice ?? null} reminder={mailing?.reminder} onClose={() => setMailing(null)} />
+      <ConfirmDialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} danger title={`Rechnung ${confirmDelete?.number} löschen?`} body={`Bei bereits versendeten Rechnungen ist eine Stornierung (Gutschrift) buchhalterisch korrekter.${deleteMovesStock ? " Die Artikel daraus bucht Ordo wieder zurück ins Lager." : ""}`} confirmLabel="Löschen" onConfirm={() => { const store = requireStore(); const inv = confirmDelete!; if (deleteMovesStock) reverseInvoiceStock(inv, "gelöscht"); store.softDelete("invoices", inv.id); if (inv.transactionId) store.softDelete("transactions", inv.transactionId); }} />
     </div>
   );
 }
 
 function InvoiceEditor({ invoice, onClose }: { invoice?: Invoice; onClose: () => void }) {
   const profile = useProfile();
+  const { role } = useMe();
+  const mailInstalled = useIsInstalled("post") && canMailInvoices(role);
+  const [mailing, setMailing] = useState(false);
+  const produkte = useIsInstalled("produkte");
+  const levels = useStockLevels();
+  const stockMoves = useList("stockMoves");
+  const products = useList("products");
   const vault = useVault();
   const contacts = useContactMap();
   const isKu = profile.vatRegime === "kleinunternehmer";
@@ -120,6 +143,14 @@ function InvoiceEditor({ invoice, onClose }: { invoice?: Invoice; onClose: () =>
   const set = (p: Partial<Invoice>) => setV({ ...v, ...p });
   const setLine = (i: number, p: Partial<InvoiceLine>) => set({ lines: v.lines.map((l, j) => (j === i ? { ...l, ...p } : l)) });
   const locked = v.status !== "draft";
+  const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  const movedStock = useMemo(() => (invoice ? stockMoves.filter((m) => m.invoiceId === invoice.id) : []), [stockMoves, invoice]);
+  /** Article picked on a line: takes over its text, unit, price and VAT. */
+  const pickProduct = (i: number, p: Product | undefined) => {
+    if (!p) return setLine(i, { productId: undefined });
+    const text = p.description.trim();
+    setLine(i, { productId: p.id, description: text.toLowerCase().startsWith(p.name.toLowerCase()) ? text : [p.name, text].filter(Boolean).join("\n"), unit: p.unit, unitNetCents: p.priceCents, vatRate: v.vatTreatment === "standard" ? p.vatRate : 0 });
+  };
 
   const pickCustomer = (id: string | undefined) => {
     const c = id ? contacts.get(id) : undefined;
@@ -183,8 +214,9 @@ function InvoiceEditor({ invoice, onClose }: { invoice?: Invoice; onClose: () =>
     store.insert("documents", { id: docId, profileId: profile.id, attachmentId: att.id, originalName: `${v.number}.pdf`, mime: "application/pdf", sha256: att.sha256, source: "invoice", importedAt: now, status: "approved", transactionId: tx.id, invoiceId: v.id, createdAt: now, updatedAt: now }, "document.invoice");
     const next: Invoice = { ...v, status: "sent", transactionId: tx.id, pdfAttachmentId: att.id };
     persist(next);
+    const moved = produkte ? bookInvoiceStock(next) : 0;
     await requirePlatform().saveFile(`${v.number}.pdf`, bytes, "application/pdf");
-    toast.success(`Rechnung ${v.number} erstellt`, "Einnahme-Buchung (offen) angelegt, PDF gespeichert.");
+    toast.success(`Rechnung ${v.number} erstellt`, `Einnahme-Buchung (offen) angelegt, PDF gespeichert.${moved ? ` ${moved === 1 ? "Ein Artikel" : `${moved} Artikel`} ${v.kind === "credit_note" ? "zurück ins Lager" : "aus dem Lager"} gebucht.` : ""}`);
     onClose();
   };
 
@@ -193,6 +225,7 @@ function InvoiceEditor({ invoice, onClose }: { invoice?: Invoice; onClose: () =>
       <>
         <Button variant="ghost" onClick={onClose}>Schließen</Button>
         {locked ? <Button variant="outline" loading={busy} onClick={download}><Download className="h-4 w-4" /> PDF</Button> : null}
+        {locked && mailInstalled && v.kind !== "offer" ? <Button variant="outline" onClick={() => setMailing(true)} title={v.emailedAt ? `Zuletzt an ${v.emailedTo} geschickt` : undefined}><Mail className="h-4 w-4" /> Per E-Mail</Button> : null}
         {locked ? <Button variant="outline" onClick={() => void downloadEInvoice()} title="Als E-Rechnung im Format ebInterface 6.1 speichern – z. B. für das Unternehmensserviceportal (Rechnungen an den Bund)"><FileCode className="h-4 w-4" /> E-Rechnung</Button> : null}
         {!locked ? <Button variant="outline" onClick={saveDraft}>Entwurf speichern</Button> : <Button variant="outline" onClick={() => { persist(v); onClose(); }}>Speichern</Button>}
         {!locked ? <Button loading={busy} onClick={send}><Send className="h-4 w-4" /> Fertigstellen & PDF</Button> : null}
@@ -227,9 +260,10 @@ function InvoiceEditor({ invoice, onClose }: { invoice?: Invoice; onClose: () =>
           </Select></Field>
         </div>
         <div>
-          <div className="mb-1 grid grid-cols-[1fr_70px_70px_110px_80px_110px_32px] gap-2 px-1 text-[11px] font-medium text-(--text-muted)"><span>Bezeichnung</span><span>Menge</span><span>Einheit</span><span>Einzelpreis</span><span>USt</span><span className="text-right">Betrag</span><span /></div>
+          <div className={cls("mb-1 grid gap-2 px-1 text-[11px] font-medium text-(--text-muted)", produkte ? LINE_GRID_ARTICLE : LINE_GRID)}>{produkte ? <span>Artikel</span> : null}<span>Bezeichnung</span><span>Menge</span><span>Einheit</span><span>Einzelpreis</span><span>USt</span><span className="text-right">Betrag</span><span /></div>
           {v.lines.map((l, i) => (
-            <div key={l.id} className="mb-2 grid grid-cols-[1fr_70px_70px_110px_80px_110px_32px] items-center gap-2">
+            <div key={l.id} className={cls("mb-2 grid items-center gap-2", produkte ? LINE_GRID_ARTICLE : LINE_GRID)}>
+              {produkte ? <ProductPicker value={l.productId} disabled={locked} levels={levels} placeholder="Artikel …" onChange={(_, p) => pickProduct(i, p)} /> : null}
               <Textarea value={l.description} disabled={locked} onChange={(e) => setLine(i, { description: e.target.value })} placeholder="Leistung" rows={l.description.includes("\n") ? 3 : 1} className="min-h-10 resize-y" />
               <Input type="number" step="0.01" value={l.quantity} disabled={locked} onChange={(e) => setLine(i, { quantity: Number(e.target.value) || 0 })} />
               <Input value={l.unit} disabled={locked} onChange={(e) => setLine(i, { unit: e.target.value })} />
@@ -240,6 +274,8 @@ function InvoiceEditor({ invoice, onClose }: { invoice?: Invoice; onClose: () =>
             </div>
           ))}
           {!locked ? <Button variant="outline" size="sm" onClick={() => set({ lines: [...v.lines, { id: ids.invoice(), description: "", quantity: 1, unit: "Stk", unitNetCents: 0, vatRate: v.vatTreatment === "standard" ? 20 : 0, discountPct: 0 }] })}><Plus className="h-4 w-4" /> Position</Button> : null}
+          {produkte && !locked && v.kind !== "offer" && v.lines.some((l) => l.productId && productById.get(l.productId) && isStockTracked(productById.get(l.productId)!)) ? <p className="mt-2 text-xs text-(--text-muted)">Beim Fertigstellen {v.kind === "credit_note" ? "kommen die Lagerartikel wieder ins Lager" : "gehen die Lagerartikel aus dem Lager"} – du siehst das beim Artikel unter „Bestand“.</p> : null}
+          {produkte && movedStock.length ? <p className="mt-2 text-xs text-(--text-muted)">Lager: {movedStock.map((m) => `${m.quantity > 0 ? "+" : "−"}${fmtQty(Math.abs(m.quantity))} ${productById.get(m.productId)?.unit ?? ""} ${productById.get(m.productId)?.name ?? "Artikel"}`).join(" · ")}</p> : null}
         </div>
         <div className="flex justify-end">
           <div className="w-72 space-y-1 text-sm">
@@ -254,6 +290,7 @@ function InvoiceEditor({ invoice, onClose }: { invoice?: Invoice; onClose: () =>
         </div>
         {vault.settings.ai.provider ? null : null}
       </div>
+      {mailing ? <InvoiceMailDialog invoice={v} onClose={() => setMailing(false)} /> : null}
     </Modal>
   );
 }

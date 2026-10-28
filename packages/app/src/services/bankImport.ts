@@ -3,6 +3,7 @@ import {
   parseCamt,
   parseBankPdfText,
   fromAiBankOutput,
+  selectBankExtraction,
   bankLineHash,
   reconcile,
   sha256Hex,
@@ -59,7 +60,7 @@ export async function importBankStatement(file: { name: string; mime: string; by
       try {
         const r = await provider.extract({ prompt: `${BANK_PROMPT}\n\n<text>\n${local.text.slice(0, 15000)}\n</text>`, schema: AI_BANK_SCHEMA, images: local.images, pdf: file.bytes });
         const ai = fromAiBankOutput(r.output as unknown as AiBankOutput);
-        if (ai.lines.length >= parsed.lines.length) parsed = ai;
+        parsed = selectBankExtraction(parsed, ai);
       } catch (e) {
         parsed.warnings.push(`KI-Erkennung fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`);
       }

@@ -11,6 +11,8 @@ import { extractionModelLabel } from "./escalation";
 import type { LocalTextResult, TextExtractor } from "./text";
 import { decodeQrCodes, fieldsFromQr, parseQrPayload, type QrPayload } from "./qr";
 import { findEInvoiceAttachment, parseEInvoiceXml } from "./einvoice";
+import { SPECIAL_CATEGORIES } from "../model/defaults";
+import { assetPurchaseCost, gwgLimitCents } from "../accounting/assets";
 
 export interface ExtractContext {
   profile: Profile;
@@ -250,7 +252,7 @@ export function transactionFromExtraction(profile: Profile, extraction: Extracti
   if (isKu && kind === "income") vatTreatment = "kleinunternehmer";
   // Outgoing invoices are open receivables until the bank statement shows the payment.
   const paid = kind === "income" ? f.isPaid === true : f.isPaid !== false;
-  return {
+  const transaction: Transaction = {
     id: ids.transaction(),
     profileId: profile.id,
     kind,
@@ -276,4 +278,18 @@ export function transactionFromExtraction(profile: Profile, extraction: Extracti
     createdAt: now,
     updatedAt: now,
   };
+  if (profile.mode === "business" && kind === "expense") {
+    const description = [f.description, ...f.lineItems.map((item) => item.description)].filter(Boolean).join(" ").toLocaleLowerCase("de");
+    const purchase = /\b(laptop|notebook|macbook|computer|monitor|drucker|smartphone|tablet|maschine|fahrzeug|pkw|kamera|schreibtisch|büromöbel|grundstück)\b/.test(description);
+    const service = /reparatur|wartung|leasing|miete|abonnement|versicherung/.test(description);
+    const special = transaction.categoryId === SPECIAL_CATEGORIES.assetPurchase || transaction.categoryId === SPECIAL_CATEGORIES.gwg;
+    if (special || (purchase && !service)) {
+      const cost = assetPurchaseCost(transaction, profile);
+      const limit = gwgLimitCents(Number(transaction.date.slice(0, 4)));
+      const categoryId = cost > limit || /grundstück/.test(description) ? SPECIAL_CATEGORIES.assetPurchase : SPECIAL_CATEGORIES.gwg;
+      if (categories.some((c) => c.id === categoryId && !c.deletedAt && !c.isArchived)) transaction.categoryId = categoryId;
+      transaction.notes = "Möglicher Anlagenkauf: Wirtschaftsgut, Nutzungsdauer, Inbetriebnahme und Vorsteuerabzug prüfen. Mehrere Positionen oder Stückzahlen einzeln prüfen; der Rechnungsbetrag allein entscheidet nicht über GWG.";
+    }
+  }
+  return transaction;
 }

@@ -258,7 +258,7 @@ export const COLLECTIONS: CollectionDef[] = [
     date: "date",
     search: ["counterparty", "purpose", "reference"],
     path: () => "/bank",
-    listFields: ["id", "date", "amountCents", "counterparty", "purpose", "status", "matchedTransactionId"],
+    listFields: ["id", "date", "amountCents", "counterparty", "purpose", "status", "ignoreReason", "matchedTransactionId"],
     omit: ["hash"],
   },
   {

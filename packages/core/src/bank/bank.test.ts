@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseBankCsv, parseCamt, parseBankPdfText } from "./parse";
-import { reconcile, transactionFromBankLine } from "./reconcile";
+import { parseBankCsv, parseCamt, parseBankPdfText, selectBankExtraction } from "./parse";
+import { reconcile, reconcileStats, transactionFromBankLine } from "./reconcile";
+import { bankIgnoreError, bankSettlementInstructions } from "./settlement";
 import { DEFAULT_CATEGORIES } from "../model/defaults";
 import type { BankLine, Transaction } from "../model/types";
 import { lineFromGross } from "../model/vat";
@@ -54,6 +55,19 @@ describe("bank parsing", () => {
     expect(s.openingBalanceCents).toBe(100000);
     expect(s.closingBalanceCents).toBe(218723);
   });
+  it("preserves source balance checks when AI returns more rows or omits balances", () => {
+    const local = parseBankPdfText(PDF_TEXT);
+    const bad = { ...local, format: "ai" as const, openingBalanceCents: undefined, closingBalanceCents: undefined, lines: [...local.lines, { ...local.lines[0]!, amountCents: 7000 }], warnings: [] };
+    const chosen = selectBankExtraction(local, bad);
+    expect(chosen.lines).toHaveLength(2);
+    expect(chosen.warnings.join(" ")).toContain("verworfen");
+    const incomplete = { ...local, lines: local.lines.slice(0, 1), warnings: ["Saldenprüfung: unvollständig"] };
+    const checked = selectBankExtraction(incomplete, { ...bad, lines: local.lines });
+    expect(checked.lines).toHaveLength(2);
+    expect(checked.openingBalanceCents).toBe(100000);
+    expect(checked.closingBalanceCents).toBe(218723);
+    expect(checked.warnings).toEqual([]);
+  });
 });
 
 describe("reconcile", () => {
@@ -79,5 +93,31 @@ describe("reconcile", () => {
     expect(t.categoryId).toBe("cat_b_ex_treibstoff");
     expect(t.paymentMethod).toBe("bank");
     expect(t.reviewed).toBe(false);
+  });
+  it("counts pocket money and gifts as household income, including generic bank transfer labels", () => {
+    for (const purpose of ["Taschengeld", "Übertrag Taschengeld", "Osterhase"]) {
+      const l = line("pocket", 7000, "2026-03-02", "Familie Beispiel", purpose);
+      const draft = transactionFromBankLine(l, "p1", "employee", DEFAULT_CATEGORIES, [], "regelbesteuerung");
+      expect(draft).toMatchObject({ kind: "income", grossCents: 7000, categoryId: "cat_e_in_geschenke" });
+      expect(draft.vatLines[0]?.vatCents).toBe(0);
+      expect(bankIgnoreError(l, "employee", "Privater Umsatz")).toContain("Privatprofil");
+    }
+    expect(bankSettlementInstructions("employee")).toContain("Private Umsätze nicht aussortieren");
+    expect(bankSettlementInstructions("business")).toContain("nicht als betrieblichen Umsatz");
+  });
+  it("rejects wrong-kind contact categories and archived category guesses", () => {
+    const l = line("credit", 7000, "2026-03-02", "Familie Beispiel", "Taschengeld");
+    const contact = { id: "c", name: "Familie Beispiel", aliases: [], defaultCategoryId: "cat_e_p_sonst" } as unknown as import("../model/types").Contact;
+    expect(transactionFromBankLine(l, "p1", "employee", DEFAULT_CATEGORIES, [contact], "kleinunternehmer").categoryId).toBe("cat_e_in_geschenke");
+    const archived = DEFAULT_CATEGORIES.map((c) => c.id === "cat_e_in_geschenke" ? { ...c, isArchived: true } : c);
+    expect(transactionFromBankLine(l, "p1", "employee", archived, [], "kleinunternehmer").categoryId).toBe("cat_e_in_sonst");
+  });
+  it("keeps ignored credits visible in reconciliation totals and requires a reason for exclusion", () => {
+    const l = { ...line("ignored", 7000, "2026-03-02", "Familie", "Taschengeld"), status: "ignored" as const };
+    const stats = reconcileStats([l], []);
+    expect(stats).toMatchObject({ total: 1, matched: 0, booked: 0, ignored: 1, ignoredCredits: 1, ignoredCreditCents: 7000 });
+    expect(reconcile([l], [], []).lines[0]?.status).toBe("ignored"); // recovery is explicit
+    expect(bankIgnoreError(l, "business")).toContain("Begründung");
+    expect(bankIgnoreError(l, "business", "Private Einlage")).toBeUndefined();
   });
 });

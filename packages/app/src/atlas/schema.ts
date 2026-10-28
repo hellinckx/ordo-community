@@ -59,8 +59,10 @@ export function schemaComplexity(schema: Json): { optional: number; unions: numb
 /**
  * Limits for strict tools in one request (structured outputs). Tools beyond the budget are still sent, just without
  * `strict` – their input is validated with zod before anything runs, so nothing invalid ever reaches the data.
+ * Besides the documented counts the API also rejects a compiled grammar that is too large, so the total schema size
+ * is capped too (kept well below the point where it failed: ~7.5k chars over 20 tools).
  */
-export const STRICT_LIMITS = { tools: 20, optional: 24, unions: 16 };
+export const STRICT_LIMITS = { tools: 12, optional: 16, unions: 8, chars: 4000 };
 
 /** Picks which tools get `strict: true`: write tools first (they change data), then the rest in the given order. */
 export function pickStrict(tools: { name: string; kind: "read" | "write"; schema: Json }[]): Set<string> {
@@ -68,12 +70,15 @@ export function pickStrict(tools: { name: string; kind: "read" | "write"; schema
   const picked = new Set<string>();
   let optional = 0;
   let unions = 0;
+  let chars = 0;
   for (const t of ordered) {
     if (picked.size >= STRICT_LIMITS.tools) break;
     const c = schemaComplexity(t.schema);
-    if (optional + c.optional > STRICT_LIMITS.optional || unions + c.unions > STRICT_LIMITS.unions) continue;
+    const size = JSON.stringify(t.schema).length;
+    if (optional + c.optional > STRICT_LIMITS.optional || unions + c.unions > STRICT_LIMITS.unions || chars + size > STRICT_LIMITS.chars) continue;
     optional += c.optional;
     unions += c.unions;
+    chars += size;
     picked.add(t.name);
   }
   return picked;

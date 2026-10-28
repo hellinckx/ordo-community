@@ -56,6 +56,7 @@ export function computeE1a(profile: Profile, year: number, transactions: Transac
   const txByKz: Record<string, string[]> = {};
   const warnings: string[] = [];
   const isKu = profile.vatRegime === "kleinunternehmer";
+  const liveAssets = assets.filter((a) => !a.deletedAt && a.profileId === profile.id);
   const brutto = profile.ustSystem === "brutto";
   let count = 0;
   let uncategorized = 0;
@@ -74,7 +75,7 @@ export function computeE1a(profile: Profile, year: number, transactions: Transac
     if (tx.deletedAt || tx.profileId !== profile.id) continue;
     if (tx.kind === "transfer" || tx.kind === "private") continue;
     // EÜR: Zufluss-/Abflussprinzip → Zahlungsdatum
-    const d = tx.paidDate ?? tx.date;
+    const d = profile.accountingMethod === "doppik" ? tx.date : tx.paidDate ?? tx.date;
     if (!d.startsWith(String(year))) continue;
     if (!tx.reviewed) unreviewed++;
     const cat = tx.categoryId ? catById.get(tx.categoryId) : undefined;
@@ -87,7 +88,7 @@ export function computeE1a(profile: Profile, year: number, transactions: Transac
     const deductible = Math.max(0, Math.min(100, tx.vatDeductiblePct)) / 100;
 
     if (tx.kind === "income") {
-      const code = tx.e1aKzOverride ?? cat?.e1aKz ?? "9090";
+      const code = liveAssets.some((a) => a.disposalTransactionId === tx.id) ? "9060" : tx.e1aKzOverride ?? cat?.e1aKz ?? "9090";
       if (isKu) {
         put(code, tx.grossCents, tx.id);
       } else if (brutto) {
@@ -100,7 +101,7 @@ export function computeE1a(profile: Profile, year: number, transactions: Transac
     }
 
     // expense
-    if (cat?.id === SPECIAL_CATEGORIES.assetPurchase) {
+    if (cat?.id === SPECIAL_CATEGORIES.assetPurchase || liveAssets.some((a) => a.transactionId === tx.id && a.method !== "gwg")) {
       // Anlagenkauf: kein sofortiger Aufwand; AfA kommt aus dem Anlagenverzeichnis
       continue;
     }
@@ -144,13 +145,16 @@ export function computeE1a(profile: Profile, year: number, transactions: Transac
   let anlagenErloese = 0;
   for (const a of assets) {
     if (a.deletedAt || a.profileId !== profile.id) continue;
-    const r = afaForYear(a, year);
-    if (a.method === "gwg") gwgTotal += r.afaCents;
+    const purchase = transactions.find((t) => !t.deletedAt && t.profileId === profile.id && t.id === a.transactionId);
+    const linkedGwgExpense = a.method === "gwg" && purchase && purchase.categoryId !== SPECIAL_CATEGORIES.assetPurchase;
+    const taxAsset = a.method === "gwg" && purchase && profile.accountingMethod !== "doppik" ? { ...a, acquisitionDate: purchase.paidDate ?? purchase.date, inServiceDate: purchase.paidDate ?? purchase.date } : a;
+    const r = afaForYear(taxAsset, year);
+    if (a.method === "gwg") { if (!linkedGwgExpense) gwgTotal += r.afaCents; }
     else afaTotal += r.afaCents;
     if (r.privateShareCents) put("9240", r.privateShareCents);
     if (a.disposedAt?.startsWith(String(year))) {
       buchwertAbgang += r.bookValueAtDisposalCents ?? 0;
-      anlagenErloese += a.disposalProceedsCents ?? 0;
+      if (!transactions.some((t) => !t.deletedAt && t.profileId === profile.id && t.id === a.disposalTransactionId)) anlagenErloese += a.disposalProceedsCents ?? 0;
     }
   }
   if (afaTotal + gwgTotal) put("9130", afaTotal + gwgTotal);
@@ -218,7 +222,7 @@ export function computeE1a(profile: Profile, year: number, transactions: Transac
     investMax = Math.min(investMax, gfb.max * 100 - grundfreibetrag);
     // qualifying investments: körperliche Wirtschaftsgüter mit Nutzungsdauer >= 4 Jahre, angeschafft im Jahr
     const qualifying = assets
-      .filter((a) => !a.deletedAt && a.profileId === profile.id && a.acquisitionDate.startsWith(String(year)) && a.usefulLifeYears >= 4 && a.method !== "gwg")
+      .filter((a) => !a.deletedAt && a.profileId === profile.id && a.gfbEligible === true && a.acquisitionDate.startsWith(String(year)) && a.usefulLifeYears >= 4 && a.method !== "gwg" && a.method !== "none")
       .reduce((s, a) => s + a.costCents, 0);
     investCovered = Math.min(investMax, qualifying);
     if (investCovered > 0) kz["9227"] = investCovered;

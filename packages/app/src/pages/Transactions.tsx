@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { FileDropHint } from "@/components/FileDropHint";
+import { useIntake } from "@/components/Intake";
 import { useSearchParams } from "react-router";
 import { Sparkles, CalendarClock, Check, Download, Filter, Pencil, Plus, Repeat, Search, Trash2, Paperclip } from "lucide-react";
-import { INTERVAL_LABELS, ids, nowIso, todayIso, nextOccurrence, type RecurringRule, type Transaction, lineFromGross, type VatRate } from "@ordo/core";
+import { INTERVAL_LABELS, ids, nowIso, todayIso, nextOccurrence, type RecurringRule, type Transaction, lineFromGross, type VatRate, missingReceipt } from "@ordo/core";
 import { useCategoryMap, useContactMap, useList, useProfile } from "@/state/hooks";
 import { requireStore } from "@/state/session";
 import { Badge, Button, Card, ConfirmDialog, DateInput, EmptyState, Field, Input, Modal, MoneyInput, PageHeader, Select, Switch, Tabs } from "@/components/ui";
@@ -14,11 +16,13 @@ import { useNavigate } from "react-router";
 
 export default function Transactions() {
   const navigate = useNavigate();
+  const intake = useIntake();
   const [params, setParams] = useSearchParams();
   const tab = (params.get("tab") as "list" | "recurring") ?? "list";
   return (
     <div className="space-y-4">
       <PageHeader title="Einnahmen & Ausgaben" subtitle="Jede Geldbewegung an einem Ort – automatisch aus deinen Rechnungen oder von Hand eingetragen." actions={<Button variant="outline" onClick={() => navigate("/belege")}><Sparkles className="h-4 w-4" /> Unsichere Rechnungen mit KI prüfen</Button>} />
+      <FileDropHint onChoose={() => void intake.upload()}>Rechnungen ins Fenster ziehen oder auswählen – für eine neue Buchung. Zu einer bestehenden Buchung: Buchung öffnen und Datei anhängen.</FileDropHint>
       <Tabs value={tab} onChange={(t) => setParams(t === "list" ? {} : { tab: t })} tabs={[{ id: "list", label: "Alle" }, { id: "recurring", label: <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" /> Regelmäßig (Abos, Miete …)</span> }]} className="w-fit" />
       {tab === "list" ? <TransactionList /> : <RecurringList />}
     </div>
@@ -28,6 +32,7 @@ export default function Transactions() {
 function TransactionList() {
   const txs = useList("transactions");
   const cats = useCategoryMap();
+  const me = useProfile();
   const cons = useContactMap();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
@@ -133,7 +138,7 @@ function TransactionList() {
                 <button type="button" onClick={() => setEditing(t)} className={cls("flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-(--surface-2)", !t.reviewed && "bg-amber-50/60 dark:bg-amber-900/10")}>
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white" style={{ background: c?.color ?? "#94a3b8" }}><CategoryIcon name={c?.icon ?? "help-circle"} className="h-4 w-4" /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5"><span className="truncate text-sm font-medium">{t.description || c?.name || "–"}</span>{t.documentIds.length ? <Paperclip className="h-3 w-3 shrink-0 text-(--text-muted)" /> : null}</span>
+                    <span className="flex items-center gap-1.5"><span className="truncate text-sm font-medium">{t.description || c?.name || "–"}</span>{t.documentIds.length ? <Paperclip className="h-3 w-3 shrink-0 text-(--text-muted)" /> : null}{missingReceipt(t, me, c) ? <Badge tone="danger" className="shrink-0">ohne Rechnung</Badge> : null}</span>
                     <span className="block truncate text-xs text-(--text-muted)">{fmtDate(t.date)}{c ? ` · ${c.name}` : ""}{t.contactId ? ` · ${cons.get(t.contactId)?.name ?? ""}` : ""}</span>
                     {!t.reviewed || (t.dueDate && !t.paidDate) ? <span className="mt-0.5 flex gap-1">{!t.reviewed ? <Badge tone="warning">ungeprüft</Badge> : null}{t.dueDate && !t.paidDate ? <Badge tone="warning">offen</Badge> : null}</span> : null}
                   </span>
@@ -170,6 +175,7 @@ function TransactionList() {
                         <span className="truncate font-medium">{t.description || c?.name || "–"}</span>
                         {t.documentIds.length ? <Paperclip className="h-3.5 w-3.5 text-(--text-muted)" /> : null}
                         {!t.reviewed ? <Badge tone="warning">ungeprüft</Badge> : null}
+                        {missingReceipt(t, me, c) ? <Badge tone="danger">ohne Rechnung</Badge> : null}
                         {t.recurringRuleId ? <Repeat className="h-3.5 w-3.5 text-(--text-muted)" /> : null}
                       </div>
                       {t.invoiceNumber ? <div className="truncate text-xs text-(--text-muted)">Nr. {t.invoiceNumber}</div> : null}

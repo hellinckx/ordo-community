@@ -190,7 +190,7 @@ async function route(req: LocalApiRequest, key: Integration, store: VaultStore):
     return { status: 200, body: { fileName: `BMD-Buchungen-${from}-${to}.csv`, rows: r.rows, warnings: r.warnings, contentBase64: toBase64(r.bytes) } };
   }
 
-  throw new ApiError(404, `Unbekannter Pfad ${M} ${p}. Übersicht: GET /v1/status – Beschreibung auf ordo-app.at/schnittstellen/.`);
+  throw new ApiError(404, `Unbekannter Pfad ${M} ${p}. Übersicht: GET /v1/status – Beschreibung auf ordo-business.netlify.app/schnittstellen/.`);
 }
 
 /** Entry point for every request from the shell. */

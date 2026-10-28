@@ -246,7 +246,7 @@ export function ServerUsagePanel() {
     <div className="space-y-3 rounded-xl border border-(--border) p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <Database className="h-4 w-4 text-(--text-muted)" />
-        <span className="font-medium">{ownServer ? "Deine Datenbank" : serverLabel(null)}</span>
+        <span className="font-medium">{ownServer ? "Deine Datenbank" : `${serverLabel(null)} · alle Konten zusammen`}</span>
         <Badge tone={ownServer ? "brand" : "neutral"}>{serverLabel(serverUrl)}</Badge>
         <span className="flex-1" />
         <Button size="sm" variant="ghost" onClick={load} loading={state === "loading"} aria-label="Neu laden"><RefreshCw className="h-4 w-4" /></Button>

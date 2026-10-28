@@ -227,7 +227,7 @@ function RecentTransactions() {
           <li key={t.id} className="flex items-center gap-3 py-2 text-sm">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white" style={{ background: c?.color ?? "#94a3b8" }}><CategoryIcon name={c?.icon ?? "help-circle"} className="h-4 w-4" /></span>
             <div className="min-w-0 flex-1">
-              <div className="truncate font-medium">{t.description || c?.name || "Buchung"}{!t.reviewed ? <Badge tone="warning" className="ml-2">ungeprüft</Badge> : null}</div>
+              <div className="flex min-w-0 items-center gap-2"><span className="truncate font-medium">{t.description || c?.name || "Buchung"}</span>{!t.reviewed ? <Badge tone="warning" className="shrink-0">ungeprüft</Badge> : null}</div>
               <div className="truncate text-xs text-(--text-muted)">{fmtDate(t.date)}{t.contactId ? ` · ${cons.get(t.contactId) ?? ""}` : ""}{c ? ` · ${c.name}` : ""}</div>
             </div>
             <div className={`tabular font-semibold ${t.kind === "income" ? "text-emerald-700 dark:text-emerald-400" : t.kind === "transfer" ? "text-(--text-muted)" : ""}`}>{t.kind === "income" ? "+" : t.kind === "transfer" ? "" : "−"}{fmtMoney(t.grossCents)}</div>

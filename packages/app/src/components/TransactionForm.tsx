@@ -7,9 +7,13 @@ import {
   lineFromGross,
   normalizeVatLines,
   grossOfLines,
-  constantsFor,
+  gwgLimitCents,
   SPECIAL_CATEGORIES,
-  type Asset,
+  assetFromTransaction,
+  assetPurchaseCost,
+  defaultAssetSettings,
+  validateAsset,
+  CHART_OF_ACCOUNTS,
   type Transaction,
   type VatLine,
   type VatRate,
@@ -18,12 +22,15 @@ import {
   type FieldState,
   type FieldStateKey,
 } from "@ordo/core";
-import { useCategoryMap, useProfile } from "@/state/hooks";
+import { useCategoryMap, useList, useProfile } from "@/state/hooks";
 import { requireStore } from "@/state/session";
 import { Button, Checkbox, DateInput, Field, Input, Modal, MoneyInput, Select, Textarea, ConfirmDialog } from "@/components/ui";
 import { CategoryPicker, ContactPicker } from "@/components/pickers";
 import { toast } from "@/state/toasts";
 import { cls, fmtMoney } from "@/lib/format";
+import { TransactionDocuments } from "./TransactionDocuments";
+import { saveWithTransactionDocuments } from "@/services/transactionDocuments";
+import type { PickedFile } from "@/platform/types";
 
 export const TREATMENT_OPTIONS: { value: VatTreatment; label: string; kinds: ("income" | "expense")[] }[] = [
   { value: "standard", label: "Inland mit USt (Standard)", kinds: ["income", "expense"] },
@@ -76,6 +83,7 @@ export function emptyTransaction(profileId: string, kind: Transaction["kind"] = 
 export function TransactionForm({ value, onChange, confidence, suggestedVendor, compact, fieldStates, openMore }: { value: Transaction; onChange: (t: Transaction) => void; confidence?: Record<string, number>; suggestedVendor?: string | null; compact?: boolean; /** Review verdict per field (rings + focus targets); falls back to raw confidences. */ fieldStates?: FieldState[]; /** Force the "Weitere Angaben" section open (e.g. to focus the invoice number). */ openMore?: boolean }) {
   const profile = useProfile();
   const cats = useCategoryMap();
+  const assets = useList("assets");
   const isBusiness = profile.mode === "business";
   const isKu = profile.vatRegime === "kleinunternehmer";
   const cat = value.categoryId ? cats.get(value.categoryId) : undefined;
@@ -120,9 +128,10 @@ export function TransactionForm({ value, onChange, confidence, suggestedVendor, 
 
   const net = value.vatLines.reduce((s, l) => s + l.netCents, 0);
   const vat = value.vatLines.reduce((s, l) => s + l.vatCents, 0);
-  const c = constantsFor(Number(value.date.slice(0, 4)));
-  const assetHint = isBusiness && kind === "expense" && cat?.id === SPECIAL_CATEGORIES.assetPurchase && net > 0 && net <= c.gwgGrenze * 100;
-  const gwgHint = isBusiness && kind === "expense" && cat?.id === SPECIAL_CATEGORIES.gwg && net > c.gwgGrenze * 100;
+  const gwgLimit = gwgLimitCents(Number(value.date.slice(0, 4)));
+  const purchaseCost = assetPurchaseCost(value, profile);
+  const assetHint = isBusiness && kind === "expense" && cat?.id === SPECIAL_CATEGORIES.assetPurchase && purchaseCost > 0 && purchaseCost <= gwgLimit;
+  const gwgHint = isBusiness && kind === "expense" && cat?.id === SPECIAL_CATEGORIES.gwg && purchaseCost > gwgLimit;
 
   return (
     <div className="space-y-4">
@@ -151,7 +160,7 @@ export function TransactionForm({ value, onChange, confidence, suggestedVendor, 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Kategorie" required>
             <CategoryPicker id="tf-category" className={confClass("category", "category")} kind={taxKind} value={value.categoryId} onChange={(id, c2) => {
-              const patch: Partial<Transaction> = { categoryId: id };
+              const patch: Partial<Transaction> = { categoryId: id, assetSettings: undefined };
               if (c2) {
                 patch.vatDeductiblePct = c2.defaultDeductiblePct;
                 if (!advancedVat && value.grossCents && c2.defaultVatRate !== singleRate && value.vatTreatment === "standard" && !isKu) patch.vatLines = [lineFromGross(value.grossCents, c2.defaultVatRate)];
@@ -245,8 +254,8 @@ export function TransactionForm({ value, onChange, confidence, suggestedVendor, 
               ) : null}
             </div>
           ) : null}
-          {assetHint ? <p className="mt-2 text-xs text-amber-700">Netto unter {c.gwgGrenze.toLocaleString("de-AT")} € – als „Geringwertiges Wirtschaftsgut“ sofort absetzbar. Kategorie wechseln?</p> : null}
-          {gwgHint ? <p className="mt-2 text-xs text-amber-700">Netto über {c.gwgGrenze.toLocaleString("de-AT")} € – das ist ein Anlagenkauf und wird über die Nutzungsdauer abgeschrieben. Kategorie „Anlagenkauf“ wählen.</p> : null}
+          {assetHint ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">Anschaffungskosten bis {fmtMoney(gwgLimit)} – für ein begünstigtes einzelnes Wirtschaftsgut ist eine GWG-Sofortabschreibung möglich.</p> : null}
+          {gwgHint ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">Die Anschaffungskosten liegen über {fmtMoney(gwgLimit)}. Für ein einzelnes Wirtschaftsgut reguläre AfA wählen; mehrere Wirtschaftsgüter getrennt erfassen.</p> : null}
         </div>
       ) : null}
 
@@ -274,6 +283,23 @@ export function TransactionForm({ value, onChange, confidence, suggestedVendor, 
         </div>
       ) : null}
 
+      {isBusiness && kind === "expense" && (value.categoryId === SPECIAL_CATEGORIES.assetPurchase || value.categoryId === SPECIAL_CATEGORIES.gwg) ? (() => {
+        const existing = assets.find((a) => a.transactionId === value.id);
+        const setup = value.assetSettings ?? (existing ? { inServiceDate: existing.inServiceDate ?? existing.acquisitionDate, usefulLifeYears: existing.usefulLifeYears, method: existing.method, degressiveRatePct: existing.degressiveRatePct, privateUsePct: existing.privateUsePct, ekrAccount: existing.ekrAccount } : defaultAssetSettings(value));
+        const change = (patch: Partial<typeof setup>) => set({ assetSettings: { ...setup, ...patch } });
+        return <div className="space-y-3 rounded-xl border border-(--border) p-3">
+          <h3 className="text-sm font-medium">Anlage und Abschreibung</h3>
+          <p className="text-xs text-(--text-muted)">Wird beim Buchen ins Anlageverzeichnis übernommen. Anschaffungskosten: {fmtMoney(assetPurchaseCost(value, profile))}, einschließlich nicht abziehbarer Umsatzsteuer. Nutzungsdauer und Inbetriebnahme prüfen; mehrere Wirtschaftsgüter getrennt erfassen.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Inbetriebnahme"><DateInput value={setup.inServiceDate ?? value.date} onChange={(date) => change({ inServiceDate: date ?? value.date })} /></Field>
+            <Field label="Abschreibung"><Select value={setup.method} onChange={(e) => { const method = e.target.value as typeof setup.method; set({ categoryId: method === "gwg" ? SPECIAL_CATEGORIES.gwg : SPECIAL_CATEGORIES.assetPurchase, assetSettings: { ...setup, method } }); }}><option value="linear">Linear</option><option value="degressive">Degressiv (Zulässigkeit prüfen)</option><option value="gwg">GWG – sofort abschreiben</option><option value="none">Keine AfA (z. B. Grund und Boden)</option></Select></Field>
+            {setup.method !== "gwg" && setup.method !== "none" ? <Field label="Nutzungsdauer (Jahre)"><Input type="number" min={1} max={100} value={setup.usefulLifeYears} onChange={(e) => change({ usefulLifeYears: Number(e.target.value) })} /></Field> : null}
+            {setup.method === "degressive" ? <Field label="Degressiver Satz (%)"><Input type="number" min={0.01} max={30} step={0.01} value={setup.degressiveRatePct} onChange={(e) => change({ degressiveRatePct: Number(e.target.value) })} /></Field> : null}
+            <Field label="Privatanteil (%)"><Input type="number" min={0} max={100} value={setup.privateUsePct} onChange={(e) => change({ privateUsePct: Number(e.target.value) })} /></Field>
+            <Field label="Anlagekonto"><Select value={setup.ekrAccount} onChange={(e) => change({ ekrAccount: e.target.value })}>{CHART_OF_ACCOUNTS.filter((a) => a.number.startsWith("0") && a.number !== "0690").map((a) => <option key={a.number} value={a.number}>{a.number} {a.name}</option>)}</Select></Field>
+          </div>
+        </div>;
+      })() : null}
       {!compact ? (
         <details className="group" open={moreOpen} onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}>
           <summary className="cursor-pointer text-sm text-(--text-muted) hover:text-(--text)">Weitere Angaben (Rechnungsnummer, Tags, Notizen)</summary>
@@ -307,39 +333,25 @@ export function saveTransaction(t: Transaction, opts: { isNew: boolean }): Trans
   const store = requireStore();
   const cats = new Map(store.vault.categories.map((c) => [c.id, c]));
   const cat = t.categoryId ? cats.get(t.categoryId) : undefined;
-  const next: Transaction = { ...t, reviewed: true, updatedAt: nowIso() };
-  if (opts.isNew) store.insert("transactions", next, "transaction.create");
-  else store.update("transactions", next.id, next, "transaction.update");
+  let next: Transaction = { ...t, reviewed: true, updatedAt: nowIso() };
   if (cat && (cat.id === SPECIAL_CATEGORIES.assetPurchase || cat.id === SPECIAL_CATEGORIES.gwg) && t.kind === "expense") {
     const existing = store.list("assets", { profileId: t.profileId }).find((a) => a.transactionId === t.id);
-    const net = t.vatLines.reduce((s, l) => s + l.netCents, 0) || t.grossCents;
-    const vat = t.vatLines.reduce((s, l) => s + l.vatCents, 0);
-    const cost = net + Math.round(vat * (1 - t.vatDeductiblePct / 100));
+    const profile = store.vault.profiles.find((p) => p.id === t.profileId)!;
+    const asset = assetFromTransaction(t, profile, existing, t.contactId ? store.byId("contacts", t.contactId) : undefined, t.documentIds.map((id) => store.byId("documents", id)).find(Boolean));
+    const error = validateAsset(asset);
+    if (error) throw new Error(error);
+    // Keep the booking-level guard as well as validateAsset; historical imports use their acquisition-year limit.
+    if (asset.method === "gwg" && asset.costCents > gwgLimitCents(Number(t.date.slice(0, 4)))) throw new Error("Die Kosten dieses Wirtschaftsguts liegen über der GWG-Grenze. Bitte eine reguläre Abschreibung wählen oder mehrere Wirtschaftsgüter getrennt erfassen.");
+    next = { ...next, assetId: asset.id, ekrAccountOverride: asset.method === "gwg" ? "7030" : asset.ekrAccount };
     if (!existing) {
-      const now = nowIso();
-      const asset: Asset = {
-        id: ids.asset(),
-        profileId: t.profileId,
-        name: t.description || "Anlage",
-        acquisitionDate: t.date,
-        costCents: cost,
-        usefulLifeYears: cat.id === SPECIAL_CATEGORIES.gwg ? 1 : 4,
-        method: cat.id === SPECIAL_CATEGORIES.gwg ? "gwg" : "linear",
-        degressiveRatePct: 30,
-        privateUsePct: 0,
-        transactionId: t.id,
-        ekrAccount: "0620",
-        categoryId: cat.id,
-        notes: "",
-        createdAt: now,
-        updatedAt: now,
-      };
       store.insert("assets", asset, "asset.create");
       if (asset.method !== "gwg") toast.info("Anlage angelegt", "Nutzungsdauer und AfA unter „Anlagen“ prüfen.");
     } else {
-      store.update("assets", existing.id, { costCents: cost, acquisitionDate: t.date, name: t.description || existing.name });
+      store.update("assets", existing.id, asset);
     }
   }
+  if (opts.isNew) store.insert("transactions", next, "transaction.create");
+  else store.update("transactions", next.id, next, "transaction.update");
   return next;
 }
 
@@ -347,32 +359,45 @@ export function TransactionDialog({ open, onClose, transaction, initialKind }: {
   const profile = useProfile();
   const [value, setValue] = useState<Transaction>(() => transaction ?? emptyTransaction(profile.id, initialKind));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [files, setFiles] = useState<PickedFile[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [readingFiles, setReadingFiles] = useState(false);
   useEffect(() => {
-    if (open) setValue(transaction ?? emptyTransaction(profile.id, initialKind));
+    if (open) { setValue(transaction ?? emptyTransaction(profile.id, initialKind)); setFiles([]); }
   }, [open, transaction, profile.id, initialKind]);
   const isNew = !transaction;
   const error = useMemo(() => validateTransaction(value), [value]);
-  const save = () => {
+  const save = async () => {
+    if (saving || readingFiles) return;
     if (error) {
       toast.warning(error);
       return;
     }
-    saveTransaction(value, { isNew });
-    toast.success(isNew ? "Buchung gespeichert" : "Buchung aktualisiert");
-    onClose();
+    setSaving(true);
+    const store = requireStore();
+    try {
+      await saveWithTransactionDocuments(store, value, files, (next) => {
+        if (requireStore() !== store || store.activeProfile.id !== value.profileId) throw new Error("Das Profil wurde gewechselt. Bitte die Buchung erneut öffnen.");
+        return saveTransaction(next, { isNew });
+      });
+      toast.success(isNew ? "Buchung gespeichert" : "Buchung aktualisiert");
+      onClose();
+    } catch (e) { toast.error("Buchung konnte nicht gespeichert werden", e instanceof Error ? e.message : String(e)); }
+    finally { setSaving(false); }
   };
   return (
     <>
-      <Modal open={open} onClose={onClose} title={isNew ? "Neue Buchung" : "Buchung bearbeiten"} size="lg" footer={
+      <Modal open={open} onClose={() => { if (!saving && !readingFiles) onClose(); }} title={isNew ? "Neue Buchung" : "Buchung bearbeiten"} size="lg" footer={
         <>
-          {!isNew ? <Button variant="ghost" className="mr-auto text-red-600" onClick={() => setConfirmDelete(true)}><Trash2 className="h-4 w-4" /> Löschen</Button> : null}
-          <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-          <Button onClick={save}>{isNew ? "Speichern" : "Aktualisieren"}</Button>
+          {!isNew ? <Button variant="ghost" disabled={saving || readingFiles} className="mr-auto text-red-600" onClick={() => setConfirmDelete(true)}><Trash2 className="h-4 w-4" /> Löschen</Button> : null}
+          <Button variant="ghost" disabled={saving || readingFiles} onClick={onClose}>Abbrechen</Button>
+          <Button loading={saving} disabled={readingFiles} onClick={() => void save()}>{isNew ? "Speichern" : "Aktualisieren"}</Button>
         </>
       }>
-        <div onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) save(); }}>
+        <fieldset disabled={saving} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void save(); } }}>
           <TransactionForm value={value} onChange={setValue} />
-        </div>
+          <TransactionDocuments value={value} onChange={setValue} files={files} onFilesChange={setFiles} disabled={saving} onReadingChange={setReadingFiles} />
+        </fieldset>
       </Modal>
       <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} danger title="Buchung löschen?" body="Die Buchung wird in den Papierkorb verschoben und nach 60 Tagen endgültig entfernt. Verknüpfte Die Rechnungsdateien bleiben erhalten." confirmLabel="Löschen" onConfirm={() => { requireStore().softDelete("transactions", value.id); toast.success("Buchung gelöscht"); onClose(); }} />
     </>

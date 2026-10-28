@@ -5,6 +5,7 @@ import { toast } from "@/state/toasts";
 import { useProfile } from "@/state/hooks";
 import { isTauri } from "@/platform";
 import { readiness, sendMessage, useAtlasRuns, type Readiness, type RunState } from "./engine";
+import { mayConsentToAtlas, requestAtlasConsent } from "./consent";
 
 /** Reactive version of `readiness()` – what is missing before Atlas can answer. */
 export function useAtlasReadiness(): Readiness {
@@ -27,7 +28,16 @@ export function useAskAtlas() {
   const navigate = useNavigate();
   return useCallback(
     async (text: string) => {
-      const r = readiness();
+      let r = readiness();
+      if (!r.ok && r.reason === "consent") {
+        const store = useSession.getState().store;
+        if (store && !mayConsentToAtlas(store)) {
+          toast.info("Einwilligung für Atlas erforderlich", "Bitte Inhaber:in oder Administration, die Datenübertragung für diesen Tresor zu erlauben.");
+          return;
+        }
+        if (!await requestAtlasConsent()) return;
+        r = readiness();
+      }
       if (!r.ok) {
         toast.info("Zuerst KI verbinden", r.message);
         navigate("/einstellungen/atlas");

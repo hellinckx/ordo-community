@@ -131,7 +131,7 @@ export const CATALOG: CatalogEntry[] = [
     name: "Eigenes Programm oder Skript",
     who: "Alles mit HTTP und JSON",
     ways: ["api", "live"],
-    steps: ["Lokale Schnittstelle (Desktop): http://127.0.0.1:47110/v1/… mit API-Schlüssel – Beschreibung unter ordo-app.at/schnittstellen/.", "Webhooks für Änderungen, REST-Abruf für Daten aus deinem Programm."],
+    steps: ["Lokale Schnittstelle (Desktop): http://127.0.0.1:47110/v1/… mit API-Schlüssel – Beschreibung unter ordo-business.netlify.app/schnittstellen/.", "Webhooks für Änderungen, REST-Abruf für Daten aus deinem Programm."],
     setup: "api_key",
   },
 ];

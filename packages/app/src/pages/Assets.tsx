@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Package, Pencil, Plus, Trash2 } from "lucide-react";
-import { afaSchedule, anlagenverzeichnis, ids, nowIso, todayIso, CHART_OF_ACCOUNTS, type Asset } from "@ordo/core";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, Download, Package, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import { afaSchedule, anlagenverzeichnis, assetsCsv, assetFromTransaction, assetPurchaseCost, validateAsset, ids, nowIso, todayIso, CHART_OF_ACCOUNTS, SPECIAL_CATEGORIES, type Asset } from "@ordo/core";
 import { useList, useProfile } from "@/state/hooks";
-import { requireStore } from "@/state/session";
-import { Badge, Button, ConfirmDialog, DateInput, EmptyState, Field, Input, Modal, MoneyInput, PageHeader, Select, Stat, Textarea } from "@/components/ui";
+import { requirePlatform, requireStore } from "@/state/session";
+import { Badge, Button, Checkbox, ConfirmDialog, DateInput, EmptyState, Field, Input, Modal, MoneyInput, PageHeader, Select, Stat, Textarea } from "@/components/ui";
+import { AssetImportDialog } from "@/components/AssetImportDialog";
 import { cls, fmtDate, fmtMoney } from "@/lib/format";
 import { toast } from "@/state/toasts";
 
@@ -13,7 +14,19 @@ export default function Assets() {
   const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<Asset | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
   const verz = useMemo(() => anlagenverzeichnis(assets, year), [assets, year]);
+  const visible = verz.rows.filter(({ asset: a }) => [a.name, a.inventoryNumber, a.supplierName, a.ekrAccount].join(" ").toLocaleLowerCase("de").includes(search.toLocaleLowerCase("de").trim()));
+  const unlinked = assets.filter((a) => !a.transactionId && !a.openingBalanceDate && a.method !== "gwg");
+  const incomplete = assets.filter((a) => !a.supplierName?.trim() || !a.supplierAddress?.trim());
+  const exportRegister = async () => {
+    setExporting(true);
+    try { await requirePlatform().saveFile(`Ordo_Anlageverzeichnis_${year}.csv`, assetsCsv(assets, year), "text/csv"); }
+    catch (e) { toast.error("Export fehlgeschlagen", e instanceof Error ? e.message : String(e)); }
+    finally { setExporting(false); }
+  };
   const years = useMemo(() => {
     const ys = new Set<number>([new Date().getFullYear()]);
     for (const a of assets) for (const r of afaSchedule(a)) ys.add(r.year);
@@ -21,12 +34,15 @@ export default function Assets() {
   }, [assets]);
   return (
     <div className="space-y-4">
-      <PageHeader title="Anlagen & Abschreibung" subtitle="Größere Anschaffungen wie Laptop, Auto oder Maschinen – Summa verteilt die Kosten richtig auf die Jahre (AfA)." actions={<><Select value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-28">{years.map((y) => <option key={y} value={y}>{y}</option>)}</Select><Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Anlage</Button></>} />
+      <PageHeader title="Anlageverzeichnis & Abschreibung" subtitle="Anschaffungen, Lieferanten, Nutzungsdauer, jährliche AfA und Restbuchwerte. Erkannte Anlagenkäufe werden beim Buchen übernommen." actions={<><Select aria-label="Auswertungsjahr" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-28">{years.map((y) => <option key={y} value={y}>{y}</option>)}</Select><Button variant="outline" onClick={() => setImporting(true)}><Upload className="h-4 w-4" /> CSV importieren</Button><Button variant="outline" loading={exporting} onClick={() => void exportRegister()}><Download className="h-4 w-4" /> CSV exportieren</Button><Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Anlage</Button></>} />
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat label={`AfA ${year} (KZ 9130)`} value={fmtMoney(verz.afaTotalCents)} />
         <Stat label={`Restbuchwert 31.12.${year}`} value={fmtMoney(verz.bookValueTotalCents)} />
         <Stat label="Anlagen" value={verz.rows.length} />
       </div>
+      <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-(--text-muted)" aria-hidden="true" /><Input aria-label="Anlagen suchen" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Anlage, Inventarnummer, Lieferant oder Konto suchen …" className="pl-9" /></div>
+      {unlinked.length ? <p className="text-sm text-amber-700 dark:text-amber-300">{unlinked.length} Anlagen ohne Anschaffungs- oder Eröffnungsbuchung: Für vollständige Bilanzwerte bitte die ursprüngliche Buchung verknüpfen oder die Altanlage mit Eröffnungsdatum übernehmen.</p> : null}
+      {incomplete.length ? <p className="text-sm text-(--text-muted)">Bei {incomplete.length} Anlagen fehlen Lieferant oder Lieferantenanschrift. Diese Angaben bitte in der Anlage ergänzen.</p> : null}
       {!assets.length ? (
         <EmptyState icon={<Package className="h-8 w-8" />} title="Keine Anlagen" body="Käufe über 1.000 € netto (Laptop, Maschinen, Fahrzeuge) werden über die Nutzungsdauer abgeschrieben. Buche sie mit der Kategorie „Anlagenkauf“ – Summa legt die Anlage automatisch an." action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Manuell anlegen</Button>} />
       ) : (
@@ -34,13 +50,15 @@ export default function Assets() {
           <table className="w-full text-sm">
             <thead className="bg-(--surface-2) text-left text-xs font-medium text-(--text-muted)"><tr><th className="w-8" /><th className="px-3 py-2">Anlage</th><th className="px-3 py-2">Anschaffung</th><th className="px-3 py-2 text-right">Kosten</th><th className="px-3 py-2">ND</th><th className="px-3 py-2 text-right">AfA {year}</th><th className="px-3 py-2 text-right">Buchwert</th><th className="w-20" /></tr></thead>
             <tbody className="divide-y divide-(--border)">
-              {verz.rows.map(({ asset: a, ...r }) => (
+              {visible.map(({ asset: a, ...r }) => (
                 <AssetRow key={a.id} asset={a} afa={r.afaCents} book={r.bookValueEndCents} mode={r.mode} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onEdit={() => setEditing(a)} />
               ))}
             </tbody>
           </table>
         </div>
       )}
+      {assets.length && !visible.length ? <p className="py-4 text-center text-sm text-(--text-muted)">Keine Anlagen für diese Suche und dieses Jahr gefunden.</p> : null}
+      {importing ? <AssetImportDialog open onClose={() => setImporting(false)} /> : null}
       <AssetDialog open={creating || !!editing} onClose={() => { setCreating(false); setEditing(null); }} asset={editing ?? undefined} />
     </div>
   );
@@ -52,7 +70,7 @@ function AssetRow({ asset: a, afa, book, mode, open, onToggle, onEdit }: { asset
     <>
       <tr className={cls("hover:bg-(--surface-2)", a.disposedAt && "opacity-60")}>
         <td className="px-2"><button onClick={onToggle} className="rounded p-1 text-(--text-muted)">{open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</button></td>
-        <td className="px-3 py-2"><div className="font-medium">{a.name}</div><div className="text-xs text-(--text-muted)">{a.method === "gwg" ? "GWG" : a.method === "degressive" ? `degressiv ${a.degressiveRatePct} %` : "linear"}{a.privateUsePct ? ` · ${a.privateUsePct} % privat` : ""}{a.disposedAt ? ` · abgegangen ${fmtDate(a.disposedAt)}` : ""}</div></td>
+        <td className="px-3 py-2"><div className="font-medium">{a.name}</div><div className="text-xs text-(--text-muted)">{a.inventoryNumber ? `${a.inventoryNumber} · ` : ""}{a.supplierName ? `${a.supplierName} · ` : ""}{a.method === "none" ? "Keine AfA" : a.method === "gwg" ? "GWG" : a.method === "degressive" ? `degressiv ${a.degressiveRatePct} %` : "linear"}{a.privateUsePct ? ` · ${a.privateUsePct} % privat` : ""}{a.disposedAt ? ` · abgegangen ${fmtDate(a.disposedAt)}` : ""}</div></td>
         <td className="whitespace-nowrap px-3 py-2 tabular">{fmtDate(a.acquisitionDate)}</td>
         <td className="whitespace-nowrap px-3 py-2 text-right tabular">{fmtMoney(a.costCents)}</td>
         <td className="whitespace-nowrap px-3 py-2">{a.method === "gwg" ? "–" : `${a.usefulLifeYears} J.`}</td>
@@ -62,6 +80,7 @@ function AssetRow({ asset: a, afa, book, mode, open, onToggle, onEdit }: { asset
       </tr>
       {open ? (
         <tr><td colSpan={8} className="bg-(--surface-2) px-6 py-3">
+          <p className="mb-2 text-xs text-(--text-muted)">{a.supplierAddress ? `Lieferantenanschrift: ${a.supplierAddress} · ` : ""}Inbetriebnahme: {fmtDate(a.inServiceDate ?? a.acquisitionDate)} · Konto {a.ekrAccount}{a.openingBalanceDate ? ` · Übernahme ${fmtDate(a.openingBalanceDate)}` : ""}</p>
           <table className="w-full max-w-lg text-xs">
             <thead><tr className="text-left text-(--text-muted)"><th className="py-1">Jahr</th><th className="py-1 text-right">AfA</th><th className="py-1 text-right">Buchwert Ende</th><th className="py-1">Modus</th></tr></thead>
             <tbody>{schedule.map((r) => <tr key={r.year} className="border-t border-(--border)"><td className="py-1">{r.year}</td><td className="py-1 text-right tabular">{fmtMoney(r.afaCents)}</td><td className="py-1 text-right tabular">{fmtMoney(r.bookValueEndCents)}</td><td className="py-1">{r.mode === "halb" ? "Halbjahres-AfA" : r.mode === "gwg" ? "Sofortabschreibung" : "Ganzjahres-AfA"}{r.bookValueAtDisposalCents ? ` · Abgang (Restbuchwert ${fmtMoney(r.bookValueAtDisposalCents)})` : ""}</td></tr>)}</tbody>
@@ -74,35 +93,49 @@ function AssetRow({ asset: a, afa, book, mode, open, onToggle, onEdit }: { asset
 
 function AssetDialog({ open, onClose, asset }: { open: boolean; onClose: () => void; asset?: Asset }) {
   const profile = useProfile();
+  const transactions = useList("transactions");
+  const allAssets = useList("assets");
   const blank = (): Asset => ({ id: ids.asset(), profileId: profile.id, name: "", acquisitionDate: todayIso(), costCents: 0, usefulLifeYears: 4, method: "linear", degressiveRatePct: 30, privateUsePct: 0, ekrAccount: "0620", notes: "", createdAt: nowIso(), updatedAt: nowIso() });
   const [v, setV] = useState<Asset>(asset ?? blank());
   const [confirmDelete, setConfirmDelete] = useState(false);
-  useMemo(() => { if (open) setV(asset ?? blank()); }, [open, asset]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) setV(asset ?? blank()); }, [open, asset]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (p: Partial<Asset>) => setV({ ...v, ...p });
   const save = () => {
-    if (!v.name.trim() || !v.costCents) {
-      toast.warning("Name und Anschaffungskosten sind nötig.");
+    const error = validateAsset(v);
+    if (error) {
+      toast.warning(error);
       return;
     }
     const store = requireStore();
+    if ((v.disposalProceedsCents ?? 0) > 0 && !v.disposalTransactionId) { toast.warning("Bitte den Anlagenverkauf mit seiner Einnahmenbuchung verknüpfen, damit Erlös und Umsatzsteuer korrekt gebucht werden."); return; }
     if (asset) store.update("assets", asset.id, { ...v, updatedAt: nowIso() });
     else store.insert("assets", v, "asset.create");
+    if (v.transactionId) store.update("transactions", v.transactionId, { assetId: v.id, categoryId: v.method === "gwg" ? SPECIAL_CATEGORIES.gwg : SPECIAL_CATEGORIES.assetPurchase, ekrAccountOverride: v.method === "gwg" ? "7030" : v.ekrAccount,
+      assetSettings: { inServiceDate: v.inServiceDate ?? v.acquisitionDate, method: v.method, usefulLifeYears: v.usefulLifeYears, degressiveRatePct: v.degressiveRatePct, privateUsePct: v.privateUsePct, ekrAccount: v.ekrAccount } });
+    if (v.disposalTransactionId) store.update("transactions", v.disposalTransactionId, { categoryId: "cat_b_in_anlage", ekrAccountOverride: "4600", e1aKzOverride: "9060" });
     onClose();
   };
-  const assetAccounts = CHART_OF_ACCOUNTS.filter((a) => a.number.startsWith("0"));
+  const assetAccounts = CHART_OF_ACCOUNTS.filter((a) => a.number.startsWith("0") && a.number !== "0690");
   return (
     <Modal open={open} onClose={onClose} title={asset ? "Anlage bearbeiten" : "Neue Anlage"} size="lg" footer={<>{asset ? <Button variant="ghost" className="mr-auto text-red-600" onClick={() => setConfirmDelete(true)}><Trash2 className="h-4 w-4" /></Button> : null}<Button variant="ghost" onClick={onClose}>Abbrechen</Button><Button onClick={save}>Speichern</Button></>}>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Bezeichnung" required className="sm:col-span-2"><Input autoFocus value={v.name} onChange={(e) => set({ name: e.target.value })} /></Field>
-        <Field label="Anschaffungsdatum"><DateInput value={v.acquisitionDate} onChange={(d) => set({ acquisitionDate: d ?? todayIso() })} /></Field>
-        <Field label="Anschaffungskosten (netto, bzw. brutto ohne Vorsteuerabzug)"><MoneyInput value={v.costCents || null} onChange={(c) => set({ costCents: c ?? 0 })} /></Field>
-        <Field label="Methode"><Select value={v.method} onChange={(e) => set({ method: e.target.value as Asset["method"], usefulLifeYears: e.target.value === "gwg" ? 1 : v.usefulLifeYears })}><option value="linear">Linear (§ 7 Abs. 1)</option><option value="degressive">Degressiv (§ 7 Abs. 1a, max. 30 %)</option><option value="gwg">GWG – Sofortabschreibung (§ 13)</option></Select></Field>
-        {v.method !== "gwg" ? <Field label="Nutzungsdauer (Jahre)" hint="PKW 8, EDV 3–4, Büromöbel 10, Gebäude 40 (2,5 %)"><Input type="number" min={1} max={100} value={v.usefulLifeYears} onChange={(e) => set({ usefulLifeYears: Number(e.target.value) || 1 })} /></Field> : null}
+        <Field label="Inventarnummer"><Input value={v.inventoryNumber ?? ""} onChange={(e) => set({ inventoryNumber: e.target.value })} /></Field>
+        <Field label="Inbetriebnahme"><DateInput value={v.inServiceDate ?? v.acquisitionDate} onChange={(d) => set({ inServiceDate: d ?? v.acquisitionDate })} /></Field>
+        <Field label="Lieferant"><Input value={v.supplierName ?? ""} onChange={(e) => set({ supplierName: e.target.value })} /></Field>
+        <Field label="Lieferantenanschrift"><Input value={v.supplierAddress ?? ""} onChange={(e) => set({ supplierAddress: e.target.value })} /></Field>
+        <Field label="Anschaffungsbuchung" className="sm:col-span-2" hint="Die Buchung aktiviert die Anschaffung auf dem Anlagekonto. Bestehende Zahlungen werden nicht erneut erzeugt."><Select value={v.transactionId ?? ""} disabled={!!asset?.transactionId} onChange={(e) => { const tx = transactions.find((t) => t.id === e.target.value); if (tx) { const linked = assetFromTransaction(tx, profile, undefined, tx.contactId ? requireStore().byId("contacts", tx.contactId) : undefined); set({ ...linked, id: v.id, name: v.name || linked.name, createdAt: v.createdAt, openingBalanceDate: undefined }); } else set({ transactionId: undefined }); }}><option value="">Keine – Altbestand oder separat gebucht</option>{transactions.filter((t) => t.kind === "expense" && (t.id === v.transactionId || !allAssets.some((a) => a.id !== v.id && a.transactionId === t.id))).map((t) => <option key={t.id} value={t.id}>{t.date} · {t.description || "Buchung"} · {fmtMoney(assetPurchaseCost(t, profile))}</option>)}</Select></Field>
+        <Field label="Anschaffungsdatum" hint={v.transactionId ? "Aus der verknüpften Anschaffungsbuchung." : undefined}><DateInput disabled={!!v.transactionId} value={v.acquisitionDate} onChange={(d) => set({ acquisitionDate: d ?? todayIso() })} /></Field>
+        <Field label="Anschaffungskosten (netto, bzw. brutto ohne Vorsteuerabzug)" hint={v.transactionId ? "Aus der Anschaffungsbuchung. Betrag und Vorsteuer dort ändern." : undefined}><MoneyInput disabled={!!v.transactionId} value={v.costCents || null} onChange={(c) => set({ costCents: c ?? 0 })} /></Field>
+        <Field label="Methode"><Select value={v.method} onChange={(e) => set({ method: e.target.value as Asset["method"], usefulLifeYears: e.target.value === "gwg" ? 1 : v.usefulLifeYears })}><option value="linear">Linear (§ 7 Abs. 1)</option><option value="degressive">Degressiv (§ 7 Abs. 1a, max. 30 %)</option><option value="gwg">GWG – Sofortabschreibung (§ 13)</option><option value="none">Keine AfA (z. B. Grund und Boden)</option></Select></Field>
+        {v.method !== "gwg" && v.method !== "none" ? <Field label="Nutzungsdauer (Jahre)" hint="Die betriebliche Nutzungsdauer individuell festlegen; Sondervorschriften beispielsweise bei Gebäuden und Fahrzeugen prüfen."><Input type="number" min={1} max={100} value={v.usefulLifeYears} onChange={(e) => set({ usefulLifeYears: Number(e.target.value) || 1 })} /></Field> : null}
         {v.method === "degressive" ? <Field label="Degressiver Satz (%)"><Input type="number" min={1} max={30} value={v.degressiveRatePct} onChange={(e) => set({ degressiveRatePct: Number(e.target.value) || 30 })} /></Field> : null}
         <Field label="Privatanteil (%)" hint="Mindert die abzugsfähige AfA (KZ 9240/9260)"><Input type="number" min={0} max={100} value={v.privateUsePct} onChange={(e) => set({ privateUsePct: Number(e.target.value) || 0 })} /></Field>
+        <div className="space-y-1 sm:col-span-2"><Checkbox label="Begünstigung für den investitionsbedingten Gewinnfreibetrag geprüft" checked={!!v.gfbEligible} onChange={(checked) => set({ gfbEligible: checked })} /><p className="text-xs text-(--text-muted)">Nur nach Prüfung der Voraussetzungen aktivieren, etwa Neuanschaffung, mindestens vier Jahre Nutzungsdauer und Behaltefrist. GWG und Grund und Boden sind ausgeschlossen; für Fahrzeuge gelten Sonderregeln.</p></div>
         <Field label="EKR-Konto"><Select value={v.ekrAccount} onChange={(e) => set({ ekrAccount: e.target.value })}>{assetAccounts.map((a) => <option key={a.number} value={a.number}>{a.number} {a.name}</option>)}</Select></Field>
-        <Field label="Abgang am (optional)"><DateInput value={v.disposedAt} onChange={(d) => set({ disposedAt: d })} /></Field>
-        {v.disposedAt ? <Field label="Veräußerungserlös"><MoneyInput value={v.disposalProceedsCents ?? null} onChange={(c) => set({ disposalProceedsCents: c ?? undefined })} /></Field> : null}
+        {!v.transactionId ? <div className="space-y-2 sm:col-span-2"><Checkbox label="Altanlage mit Eröffnungsbuchung übernehmen" checked={!!v.openingBalanceDate} onChange={(checked) => set({ openingBalanceDate: checked ? `${new Date().getFullYear()}-01-01` : undefined })} />{v.openingBalanceDate ? <Field label="Eröffnungsdatum" hint="Zum 1. Jänner, nach dem Anschaffungsjahr: Kosten und bisherige AfA gegen Eigenkapital (9000)."><DateInput value={v.openingBalanceDate} onChange={(d) => set({ openingBalanceDate: d })} /></Field> : null}</div> : null}
+        <Field label="Abgang am (optional)"><DateInput value={v.disposedAt} onChange={(d) => set({ disposedAt: d, ...(!d ? { disposalTransactionId: undefined, disposalProceedsCents: undefined } : {}) })} /></Field>
+        {v.disposedAt ? <><Field label="Verkaufsbuchung" hint="Bei einem Verkauf die Einnahmenbuchung mit dem passenden Umsatzsteuersatz verknüpfen; bei Verschrottung ohne Erlös leer lassen."><Select value={v.disposalTransactionId ?? ""} onChange={(e) => { const sale = transactions.find((t) => t.id === e.target.value); set({ disposalTransactionId: sale?.id, disposalProceedsCents: sale ? (profile.vatRegime === "kleinunternehmer" ? sale.grossCents : sale.vatLines.reduce((sum, l) => sum + l.netCents, 0) || sale.grossCents) : undefined, ...(sale ? { disposedAt: sale.date } : {}) }); }}><option value="">Kein Verkauf / noch nicht verknüpft</option>{transactions.filter((t) => t.kind === "income" && !allAssets.some((a) => a.id !== v.id && a.disposalTransactionId === t.id)).map((t) => <option key={t.id} value={t.id}>{t.date} · {t.description || "Einnahme"} · {fmtMoney(t.grossCents)}</option>)}</Select></Field><Field label="Veräußerungserlös (ohne abzuführende USt)"><MoneyInput disabled={!!v.disposalTransactionId} value={v.disposalProceedsCents ?? null} onChange={(c) => set({ disposalProceedsCents: c ?? undefined })} /></Field></> : null}
         <Field label="Notizen" className="sm:col-span-2"><Textarea value={v.notes} onChange={(e) => set({ notes: e.target.value })} /></Field>
       </div>
       <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} danger title="Anlage löschen?" confirmLabel="Löschen" onConfirm={() => { requireStore().softDelete("assets", v.id); onClose(); }} />

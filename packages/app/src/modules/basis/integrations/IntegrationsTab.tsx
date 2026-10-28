@@ -133,7 +133,7 @@ function LocalApiCard() {
           <details className="rounded-xl bg-(--surface-2) p-3 text-xs">
             <summary className="cursor-pointer font-medium">Beispiel für Programmierer</summary>
             <pre className="mt-2 overflow-x-auto whitespace-pre-wrap">{`curl ${base}/v1/status -H "Authorization: Bearer <API-Schlüssel>"\n\ncurl ${base}/v1/transactions -H "Authorization: Bearer <API-Schlüssel>" \\\n  -H "Content-Type: application/json" \\\n  -d '{"kind":"expense","date":"2026-10-22","amount":119.90,"vatRate":20,"description":"Druckerpapier","contactName":"Muster GmbH","externalId":"ER-4711"}'`}</pre>
-            <p className="mt-2">Alle Pfade (Kontakte, Buchungen, Rechnungen, E-Rechnung, Lager, Zeiten, BMD-Export): ordo-app.at/schnittstellen/</p>
+            <p className="mt-2">Alle Pfade (Kontakte, Buchungen, Rechnungen, E-Rechnung, Lager, Zeiten, BMD-Export): ordo-business.netlify.app/schnittstellen/</p>
           </details>
         </div>
       ) : (
@@ -183,7 +183,7 @@ function CatalogCard({ c, onSetup, onAtlas, onVote }: { c: CatalogEntry; onSetup
         <Button size="sm" variant="ghost" onClick={() => setOpen(!open)}>{open ? "Weniger" : "So geht's"}</Button>
         {c.setup ? <Button size="sm" variant="outline" onClick={() => onSetup(c.setup!)}><Plus className="h-4 w-4" /> Einrichten</Button> : null}
         <Button size="sm" variant="ghost" onClick={onAtlas}><Sparkles className="h-4 w-4" /> Atlas</Button>
-        {c.pollId ? <Button size="sm" variant="ghost" onClick={onVote}><Vote className="h-4 w-4" /> Abstimmen</Button> : null}
+        {c.pollId ? <Button size="sm" variant="ghost" onClick={onVote} title="Stimm ab, welche Anbindungen wir als Nächstes fest einbauen – ohne Einrichten, ohne Feldzuordnung."><Vote className="h-4 w-4" /> {c.setup ? "Direkte Anbindung wünschen" : "Anbindung wünschen"}</Button> : null}
       </div>
     </div>
   );
@@ -313,7 +313,7 @@ function IntegrationEditor({ initial, onClose }: { initial: Integration; onClose
               <Field label="Pfad zur Liste" hint="z. B. data oder value – leer lassen, Ordo sucht selbst."><Input value={v.itemsPath} onChange={(e) => set({ itemsPath: e.target.value.trim() })} placeholder="value" /></Field>
             </div>
             <div className="rounded-xl border border-(--border) p-3">
-              <div className="mb-2 flex flex-wrap items-center gap-2"><span className="text-xs font-medium text-(--text-muted)">Feldzuordnung: Ordo-Feld ← Feld im anderen Programm</span><span className="flex-1" /><Button size="sm" variant="outline" onClick={() => void readFields()} loading={probing} disabled={!v.baseUrl}><RefreshCw className="h-4 w-4" /> Felder lesen</Button></div>
+              <div className="mb-2 flex flex-wrap items-center gap-2"><span className="min-w-0 text-xs text-(--text-muted)"><span className="font-medium">Feldzuordnung: Ordo-Feld ← Feld im anderen Programm.</span> Meist musst du nichts tippen: Adresse und Schlüssel eintragen, dann „Felder lesen“ – Ordo holt die Feldnamen und ordnet sie selbst zu.</span><span className="flex-1" /><Button size="sm" variant="outline" onClick={() => void readFields()} loading={probing} disabled={!v.baseUrl}><RefreshCw className="h-4 w-4" /> Felder lesen</Button></div>
               {probe ? <p className="mb-2 text-xs text-(--text-muted)">{probe.count} Datensätze gefunden. Felder unten auswählen.</p> : null}
               <datalist id="probe-fields">{probe?.fields.map((f) => <option key={f.path} value={f.path.replace(/^\d+\./, "")}>{f.example}</option>)}</datalist>
               <div className="grid gap-2 sm:grid-cols-2">

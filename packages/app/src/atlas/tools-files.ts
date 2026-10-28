@@ -25,7 +25,7 @@ const ReadInput = z.object({
 const readAttachment = defineTool<z.infer<typeof ReadInput>>({
   name: "read_attachment",
   description:
-    "Liest den Inhalt einer angehängten Datei (Tabelle als Zeilen mit Spaltennamen, Text oder JSON in Abschnitten). Lies nur, was du für die Aufgabe brauchst – bei großen Dateien in Abschnitten. PDFs und Bilder liest du nicht selbst: die gibst du mit add_invoice_files an Summa.",
+    "Liest den Inhalt einer angehängten Datei (Tabelle als Zeilen mit Spaltennamen, Text oder JSON in Abschnitten). Lies nur, was du für die Aufgabe brauchst – bei großen Dateien in Abschnitten. PDFs liest du nicht selbst, Bilder siehst du direkt in der Nachricht; Rechnungen und Kassenbons gibst du mit add_invoice_files an Summa.",
   input: ReadInput,
   kind: "read",
   preview: (input) => `„${getAttachment(input.file_id)?.name ?? "Datei"}“ lesen`,

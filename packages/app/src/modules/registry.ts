@@ -7,10 +7,11 @@ import { summaModule } from "./summa";
 import { projekteModule } from "./projekte";
 import { produkteModule } from "./produkte";
 import { produktionModule } from "./produktion";
+import { postModule } from "./post";
 import type { ModuleId, OrdoModule } from "./types";
 
 /** Order = order in the sidebar and in the module overview. */
-export const ALL_MODULES: OrdoModule[] = [basisModule, projekteModule, summaModule, produkteModule, produktionModule];
+export const ALL_MODULES: OrdoModule[] = [basisModule, projekteModule, summaModule, produkteModule, produktionModule, postModule];
 
 export function moduleById(id: string): OrdoModule | undefined {
   return ALL_MODULES.find((m) => m.id === id);

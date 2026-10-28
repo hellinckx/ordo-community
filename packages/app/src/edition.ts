@@ -23,6 +23,10 @@ export interface OperatorConfig {
   provider: string | null;
   /** Desktop updates from the operator's signed releases. */
   updates: boolean;
+  /** Private operator deployment: existing accounts only; own databases remain independent. */
+  privateInstance?: boolean;
+  /** Operator release assets, absent from independent community builds. */
+  updateDownloadBase?: string;
   /** The operator's announcements to all accounts (a table only the operator's schema has); null = none. */
   fetchAnnouncements: ((client: SupabaseClient) => PromiseLike<{ data: unknown[] | null }>) | null;
 }

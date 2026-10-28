@@ -2,19 +2,19 @@
   <img src="packages/app/public/logo.svg" alt="" width="76" height="76" />
 </p>
 
-<h1 align="center">Ordo – Community Edition</h1>
+<h1 align="center">Ordo</h1>
 
 <p align="center">
   <strong>Buchhaltung, Projekte und Lager für Selbstständige und kleine Firmen.</strong><br />
-  Lokal, verschlüsselt, ohne Tracking – und quelloffen unter der GNU AGPL-3.0.
+  Deine Installation. Deine Datenbank. Freie Software unter GNU AGPL-3.0.
 </p>
 
 <p align="center">
   <a href="#schnell-starten">Selbst starten</a> ·
-  <a href="../../releases">Fertige Apps</a> ·
+  <a href="../../releases">Community-Releases</a> ·
   <a href="SELFHOST.md">Eigene Datenbank</a> ·
   <a href="docs/API.md">Schnittstellen</a> ·
-  <a href="https://ordo-app.at">ordo-app.at</a>
+  <a href="https://ordo-business.netlify.app">Website</a>
 </p>
 
 <p align="center">
@@ -22,6 +22,13 @@
 </p>
 
 *Ordo is local-first business software for sole traders and small companies – bookkeeping with (Austrian) VAT returns, projects and time tracking, stock and production, and the AI assistant Atlas. The interface is German. This is the open-source edition under the GNU AGPL-3.0: run it entirely on your own device or with your own database.*
+
+**Dieses Repository ist die eigenständige Open-Source-Ausgabe.** Es enthält keinen Zugang zu einer privaten Betreiber-Datenbank. Du entscheidest: lokal ohne Konto, mit deinem eigenen Supabase-Projekt oder vollständig auf deiner eigenen Infrastruktur. Öffentliche Betreiberkonten, Wartelisten und Bezahlangebote gehören nicht zu dieser Ausgabe.
+
+| Lokal verwenden | Eigene Datenbank | Selbst hosten |
+| --- | --- | --- |
+| Verschlüsselter Tresor auf deinem Gerät, ohne Konto | Geräteabgleich über dein eigenes Supabase-Projekt | Web-App und Supabase auf deiner Infrastruktur |
+| [Schnell starten](#schnell-starten) | [Projekt verbinden](SELFHOST.md#a-eigenes-projekt-bei-supabase) | [Docker und Betrieb](SELFHOST.md#c-die-web-app-selbst-hosten) |
 
 ---
 
@@ -60,7 +67,7 @@ Ordo nimmt dir die Routine vor der Steuerberatung ab: Rechnungen sammeln, Zahlen
 - **Projekte & Zeiterfassung:** Projekte mit Budget, Arbeitspakete, Meilensteine, Zeitplan, Stoppuhr, Angebote mit PDF, Auswertung mit Prognose und Team-Auslastung.
 - **Produkte & Lager:** Artikel, Bestand, Mindestbestand, Inventur, Lagerwert.
 - **Produktion:** Stücklisten, Arbeitsschritte, Fertigungsaufträge, Fertigware geht ins Lager.
-- **Atlas:** der Assistent in Ordo. Beantwortet Fragen mit deinen Zahlen, zeichnet Diagramme und erledigt Dinge wie Zeiten erfassen – mit deinem eigenen API-Key von Anthropic oder OpenAI oder in der Desktop-App mit deinem ChatGPT-Abo über Codex. Aus, bis du ihn einschaltest.
+- **Atlas:** der Assistent in Ordo. Beantwortet Fragen mit deinen Zahlen, zeichnet Diagramme und erledigt Dinge wie Zeiten erfassen – mit deinem eigenen API-Key von Anthropic oder OpenAI oder in der Desktop-App mit deinem ChatGPT-Abo über Codex. Fragt direkt vor Ort nach deiner Einwilligung und zeigt laufende Arbeit samt betroffenem Bereich. Aus, bis du ihn einschaltest.
 - **Schnittstellen:** BMD, ebInterface, E-Rechnung (XRechnung, ZUGFeRD, PEPPOL), SAP Business One, REST, Webhooks und eine lokale Schnittstelle für andere Programme am selben Computer ([docs/API.md](docs/API.md)).
 
 Am Handy läuft Ordo als App vom Home-Bildschirm, mit Kamera für Kassabons.
@@ -76,7 +83,7 @@ Am Handy läuft Ordo als App vom Home-Bildschirm, mit Kamera für Kassabons.
 
 ## Fertige Apps oder selbst bauen
 
-**Fertige Apps:** Unter [Releases](../../releases) liegen bei jeder Version der Windows-Installer (`Ordo-Setup.exe`) und die Mac-App (`Ordo-macOS.dmg`). Das sind die Apps von [ordo-app.at](https://ordo-app.at/download/): mit dem Ordo-Server als Option und automatischen Updates. Fürs Handy gibt es Ordo als App über die [Download-Seite](https://ordo-app.at/download/#handy).
+**Community-Releases:** Verfügbare Installationsdateien stehen unter [Releases](../../releases). Windows- und Mac-Builds werden im öffentlichen Repository aus diesem Quellcode erstellt; ihren Stand siehst du unter [Actions](../../actions). Community-Builds haben eine eigene App-Kennung und enthalten keinen privaten Server oder privaten Updatekanal. Falls für deine Plattform noch kein fertiges Paket vorliegt, kannst du selbst bauen.
 
 **Selbst bauen** aus diesem Quellcode, ganz ohne Ordo-Server:
 
@@ -90,6 +97,8 @@ pnpm dev
 ```
 
 Dann <http://localhost:5174/app/> öffnen und „Demo ansehen“ wählen, um mit einer Beispielfirma durchzuklicken. Unter Windows geht auch ein Doppelklick auf `Start-Ordo.cmd` (Web-App, Desktop-App, Tests).
+
+Für den Abgleich reicht ein beliebiger PostgreSQL-Server allein nicht: Ordo verwendet Supabase mit PostgreSQL, Auth und Storage. Supabase kannst du selbst betreiben oder als eigenes Projekt verbinden.
 
 - **Web-App bauen:** `pnpm build:app` – das Ergebnis liegt in `packages/app/dist` und ist eine statische Seite (App unter `/app/`). Mit Docker: siehe [SELFHOST.md](SELFHOST.md).
 - **Desktop-App bauen:** [Rust](https://rustup.rs) installieren, dann `pnpm desktop:build`. Unter Windows liegt der Installer danach in `apps/desktop/src-tauri/target/release/bundle/nsis`, am Mac die App unter `…/bundle/macos`.
@@ -113,8 +122,12 @@ Ordo ist ein Werkzeug zur Vorbereitung – keine Steuerberatung und kein Ersatz 
 
 ## Lizenz
 
-Copyright © 2026 Hellinckx Process Simulation e.U. – <https://ordo-app.at>
+Copyright © 2026 Hellinckx Process Simulation e.U. – <https://ordo-business.netlify.app>
 
 Dieses Programm ist freie Software: Du kannst es unter den Bedingungen der **GNU Affero General Public License, Version 3**, weitergeben und verändern ([LICENSE](LICENSE)). Wer eine veränderte Fassung anderen über ein Netzwerk zur Verfügung stellt, muss ihnen auch den geänderten Quellcode zugänglich machen.
 
 Diese Ausgabe erscheint mit jeder Version von Ordo neu.
+
+## Mitmachen
+
+Fehler nachvollziehbar beschreiben, Ideen als Issue diskutieren oder einen Pull Request einreichen. Verwende ausschließlich anonymisierte Beispieldaten und veröffentliche keine Tresore, Zugangsschlüssel oder echten Rechnungen. Einstieg: [CONTRIBUTING.md](CONTRIBUTING.md).

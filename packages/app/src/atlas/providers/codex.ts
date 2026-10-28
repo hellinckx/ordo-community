@@ -1,5 +1,6 @@
 import { CODEX_AGENT_SCHEMA, parseCodexAgentStep, type AtlasMessage, type CodexBridge } from "@ordo/core";
 import { AtlasProviderError, type AssistantRaw, type AtlasProvider, type StepInput, type StepResult, type UserRaw } from "./types";
+import { imagesIn } from "../vision";
 
 const MAX_RESULT = 6_000;
 const MAX_TRANSCRIPT = 140_000;
@@ -14,7 +15,9 @@ function transcript(history: AtlasMessage[]): string {
   for (const m of history) {
     if (m.role === "user") {
       const raw = (m.raw ?? {}) as UserRaw;
-      parts.push(`### Person\n${raw.context ? raw.context + "\n" : ""}${m.text}`);
+      // codex exec gets text only – Atlas says so instead of guessing what a picture shows
+      const blind = imagesIn(m.text).length ? "\n(Hinweis von Ordo: Über ChatGPT/Codex kann Atlas angehängte Bilder nicht ansehen. Sag das der Person, statt zu raten.)" : "";
+      parts.push(`### Person\n${raw.context ? raw.context + "\n" : ""}${m.text}${blind}`);
     } else if (m.role === "assistant") {
       if (((m.raw ?? {}) as AssistantRaw).local) continue;
       const calls = m.toolCalls.map((c) => `→ Werkzeug ${c.name} ${JSON.stringify(c.input ?? {})} (id ${c.id})`).join("\n");
@@ -65,6 +68,7 @@ export function createCodexProvider(bridge: CodexBridge | undefined): AtlasProvi
         if (input.signal.aborted) throw new AtlasProviderError("Abgebrochen", "aborted", e);
         const msg = e instanceof Error ? e.message : String(e);
         if (/nicht gefunden|not found/i.test(msg)) throw new AtlasProviderError("Die Codex-App wurde nicht gefunden. Installier sie und melde dich unter Einstellungen → Atlas mit ChatGPT an.", "unavailable", e);
+        if (/usage limit|rate limit|quota|too many requests|limit reached/i.test(msg)) throw new AtlasProviderError("Das Kontingent deines ChatGPT-Abos ist gerade ausgeschöpft.", "rate", e);
         if (/log ?in|anmeld|auth/i.test(msg)) throw new AtlasProviderError("Codex ist nicht mit ChatGPT angemeldet. Melde dich unter Einstellungen → Atlas an.", "auth", e);
         throw new AtlasProviderError(`Codex meldet einen Fehler: ${msg}`, "other", e);
       }

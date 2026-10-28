@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeftRight, Check, FileCheck2, Landmark, Link2, Plus, RefreshCw, Search, Upload, X, EyeOff, Sparkles, AlertTriangle } from "lucide-react";
-import { reconcileStats, candidatesForLine, transactionFromBankLine, nowIso, type BankLine, type Transaction } from "@ordo/core";
+import { reconcileStats, candidatesForLine, transactionFromBankLine, bankSettlementInstructions, needsBankTransferReview, nowIso, type BankLine, type Transaction } from "@ordo/core";
 import { useCategoryMap, useContactMap, useList, useProfile, useVault } from "@/state/hooks";
 import { requirePlatform, requireStore } from "@/state/session";
 import { FolderLinkButton, FolderLinks } from "@/components/FolderLinks";
@@ -13,7 +13,7 @@ import { toast } from "@/state/toasts";
 import { useAskAtlas } from "@/atlas/hooks";
 import { CategoryIcon } from "@/lib/icons";
 
-type Filter = "open" | "suggested" | "matched" | "ignored" | "all";
+type Filter = "open" | "suggested" | "matched" | "ignored" | "ignoredIncome" | "all";
 
 export default function Bank() {
   const profile = useProfile();
@@ -31,8 +31,8 @@ export default function Bank() {
   const [busy, setBusy] = useState<string | null>(null);
   const [booking, setBooking] = useState<{ line: BankLine; tx: Transaction } | null>(null);
   const [linking, setLinking] = useState<BankLine | null>(null);
+  const [reviewIgnored, setReviewIgnored] = useState(false);
   const txById = useMemo(() => new Map(txs.map((t) => [t.id, t])), [txs]);
-  const stmtById = useMemo(() => new Map(statements.map((s) => [s.id, s])), [statements]);
 
   const scoped = useMemo(() => lines.filter((l) => statementId === "all" || l.statementId === statementId), [lines, statementId]);
   const stats = useMemo(() => {
@@ -56,6 +56,7 @@ export default function Bank() {
         if (filter === "suggested" && l.status !== "suggested") return false;
         if (filter === "matched" && l.status !== "matched" && l.status !== "booked") return false;
         if (filter === "ignored" && l.status !== "ignored") return false;
+        if (filter === "ignoredIncome" && (l.status !== "ignored" || l.amountCents <= 0)) return false;
         if (s && !`${l.counterparty} ${l.purpose} ${l.reference} ${l.amountCents / 100}`.toLowerCase().includes(s)) return false;
         return true;
       })
@@ -74,7 +75,7 @@ export default function Bank() {
   };
 
   const setStatus = (l: BankLine, status: BankLine["status"], matched?: string) => {
-    requireStore().update("bankLines", l.id, { status, matchedTransactionId: matched, suggestedTransactionId: status === "matched" ? undefined : l.suggestedTransactionId, updatedAt: nowIso() }, "bank.status");
+    requireStore().update("bankLines", l.id, { status, matchedTransactionId: matched, ignoreReason: status === "ignored" ? "Manuell ausgeschlossen" : undefined, suggestedTransactionId: undefined, suggestionScore: undefined, updatedAt: nowIso() }, "bank.status");
   };
   const acceptSuggestion = (l: BankLine) => l.suggestedTransactionId && setStatus(l, "matched", l.suggestedTransactionId);
   const startBooking = (l: BankLine) => {
@@ -98,18 +99,29 @@ export default function Bank() {
     toast.info("Abgleich aktualisiert", `${r.autoMatched} automatisch zugeordnet, ${r.suggested} Vorschläge`);
   };
 
-  const pct = stats.total ? (stats.matched + stats.booked + stats.ignored) / stats.total : 0;
+  const pct = stats.total ? (stats.matched + stats.booked) / stats.total : 0;
+  const ignoredIncome = scoped.filter((l) => l.status === "ignored" && l.amountCents > 0);
+  const restoreIgnored = () => {
+    const ids = new Set(ignoredIncome.map((l) => l.id));
+    requireStore().mutate((v) => {
+      v.bankLines = v.bankLines.map((l) => ids.has(l.id) && l.profileId === profile.id && !l.deletedAt && l.status === "ignored" && !l.matchedTransactionId
+        ? { ...l, status: "unmatched", ignoreReason: undefined, suggestedTransactionId: undefined, suggestionScore: undefined, updatedAt: nowIso() } : l);
+    }, { audit: { action: "bank.review_ignored", entity: "bankLines", details: `${ids.size} Eingänge zur erneuten Prüfung` } });
+    runReconcile();
+    setReviewIgnored(false); setFilter("open"); setQ("");
+    toast.info("Eingänge erneut geprüft", "Passende Buchungen wurden abgeglichen. Fehlende Einnahmen sind jetzt offen; es wurden keine neuen Buchungen angelegt.");
+  };
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Kontoauszüge" subtitle="Kontoauszug hochladen – Summa vergleicht jede Zeile mit deinen Buchungen und zeigt, was fehlt. Nichts vergessen, nichts doppelt." actions={<><FolderLinks kind="bank" /><Button variant="outline" onClick={rerun}><RefreshCw className="h-4 w-4" /> Neu vergleichen</Button><Button onClick={upload} loading={!!busy}><Upload className="h-4 w-4" /> Kontoauszug hochladen</Button></>} />
+      <PageHeader title="Kontoauszüge" subtitle="Kontoauszug hochladen – Ordo vergleicht die erkannten Umsätze mit deinen Buchungen. Offene, zugeordnete und ignorierte Umsätze bleiben getrennt sichtbar." actions={<><FolderLinks kind="bank" /><Button variant="outline" onClick={rerun}><RefreshCw className="h-4 w-4" /> Neu vergleichen</Button><Button onClick={upload} loading={!!busy}><Upload className="h-4 w-4" /> Kontoauszug hochladen</Button></>} />
       {busy ? <div className="surface flex items-center gap-3 px-4 py-2 text-sm"><Spinner className="h-4 w-4" />{busy}</div> : null}
       {!lines.length ? (
         <EmptyState icon={<Landmark className="h-10 w-10" />} title="Noch kein Kontoauszug importiert" body={<>Lade den Kontoauszug deiner Bank hoch (PDF, CSV-Export oder CAMT-XML – z. B. aus George, ELBA, Bank Austria, N26, Revolut, PayPal). Summa ordnet jede Zeile automatisch einer Buchung zu und zeigt, was noch fehlt: Bankspesen, Lastschriften, Abos, Gutschriften. {profile.mode === "business" ? "Unter Einstellungen → Ordner kannst du einen Ordner für Kontoauszüge dauerhaft überwachen." : ""}</>} action={<div className="flex flex-wrap justify-center gap-2"><Button onClick={upload}><Upload className="h-4 w-4" /> Kontoauszug wählen</Button><FolderLinkButton kind="bank" /></div>} />
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <Stat label="Abgeglichen" value={fmtPct(pct)} sub={`${stats.matched + stats.booked} von ${stats.total} Umsätzen`} tone={pct > 0.95 ? "up" : undefined} />
+            <Stat label="Mit Buchung abgeglichen" value={fmtPct(pct)} sub={`${stats.matched + stats.booked} von ${stats.total} Umsätzen · ${stats.ignored} ignoriert`} tone={pct > 0.95 ? "up" : undefined} />
             <Stat label="Offen" value={stats.unmatched} sub={`Abgänge ${fmtMoney(stats.unmatchedDebitCents)} · Eingänge ${fmtMoney(stats.unmatchedCreditCents)}`} tone={stats.unmatched ? "down" : "up"} />
             <Stat label="Vorschläge" value={stats.suggested} sub="bitte bestätigen" />
             <Stat label="Ohne Bankbeleg" value={stats.unbankedTransactions.length} sub="Buchungen (Bank) ohne Umsatz" />
@@ -122,17 +134,23 @@ export default function Bank() {
                 <div className="font-medium">{stats.unmatched + stats.suggested} {stats.unmatched + stats.suggested === 1 ? "Umsatz wartet" : "Umsätze warten"} auf dich</div>
                 <div className="text-xs text-(--text-muted)">{[stats.suggested ? `${stats.suggested} Vorschläge zum Bestätigen` : "", stats.unmatched ? `${stats.unmatched} ohne Buchung` : ""].filter(Boolean).join(" · ")}. Atlas ordnet zu, bucht Einnahmen und Ausgaben und sagt dir, wo eine Rechnung fehlt.</div>
               </div>
-              <Button onClick={() => void askAtlas("Erledige meine offenen Kontoauszugszeilen: Bestätige passende Vorschläge, ordne Umsätze bestehenden Buchungen zu und buche den Rest als Einnahme oder Ausgabe mit passender Kategorie. Private Umsätze und Umbuchungen zwischen eigenen Konten ignorierst du. Zeig mir vorher kurz, was du vorhast, und sag mir danach, wo noch eine Rechnung fehlt oder etwas unklar ist.")}><Sparkles className="h-4 w-4" /> Atlas erledigt das</Button>
+              <Button onClick={() => void askAtlas(bankSettlementInstructions(profile.mode))}><Sparkles className="h-4 w-4" /> Atlas erledigt das</Button>
             </div>
           ) : null}
+          {stats.ignoredCredits ? <div role="status" className="surface flex flex-wrap items-center gap-3 px-4 py-3">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 flex-[1_1_18rem] text-sm"><div className="font-medium">{stats.ignoredCredits} {stats.ignoredCredits === 1 ? "ignorierter Eingang" : "ignorierte Eingänge"} · {fmtMoney(stats.ignoredCreditCents)}</div><p className="text-xs text-(--text-muted)">Diese Eingänge sind keiner Einnahme zugeordnet. {profile.mode === "employee" ? "Taschengeld und Geschenke gehören zum privaten Budget. " : "Private Einlagen können zu Recht ausgeschlossen sein. "}Prüfe, ob echte Einnahmen oder Umbuchungen vorliegen.</p></div>
+            <Button variant="outline" onClick={() => { setFilter("ignoredIncome"); setQ(""); }}>Eingänge ansehen</Button><Button variant="outline" onClick={() => setReviewIgnored(true)}>Erneut prüfen</Button>
+          </div> : null}
           <div className="flex flex-wrap items-center gap-2">
-            <Tabs value={filter} onChange={setFilter} tabs={[{ id: "open", label: "Offen", badge: stats.unmatched + stats.suggested ? <Badge tone="warning">{stats.unmatched + stats.suggested}</Badge> : undefined }, { id: "suggested", label: "Vorschläge" }, { id: "matched", label: "Zugeordnet" }, { id: "ignored", label: "Ignoriert" }, { id: "all", label: "Alle" }]} />
+            <Tabs value={filter} onChange={setFilter} tabs={[{ id: "open", label: "Offen", badge: stats.unmatched + stats.suggested ? <Badge tone="warning">{stats.unmatched + stats.suggested}</Badge> : undefined }, { id: "suggested", label: "Vorschläge" }, { id: "matched", label: "Zugeordnet" }, { id: "ignored", label: "Ignoriert" }, ...(stats.ignoredCredits ? [{ id: "ignoredIncome" as const, label: "Ignorierte Eingänge" }] : []), { id: "all", label: "Alle" }]} />
             <Select value={statementId} onChange={(e) => setStatementId(e.target.value)} className="w-64"><option value="all">Alle Kontoauszüge</option>{[...statements].sort((a, b) => (b.from ?? "").localeCompare(a.from ?? "")).map((s) => <option key={s.id} value={s.id}>{s.from ? `${fmtDate(s.from)} – ${fmtDate(s.to)}` : s.importedAt.slice(0, 10)} · {s.bankName || s.iban || s.format.toUpperCase()}</option>)}</Select>
             <div className="relative min-w-48 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Suchen …" className="pl-9" /></div>
           </div>
-          {statementId !== "all" && stmtById.get(statementId)?.warnings.length ? <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-900/20 dark:text-amber-100">{stmtById.get(statementId)!.warnings.map((w, i) => <div key={i} className="flex gap-2"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{w}</div>)}</div> : null}
+          {statements.filter((s) => (statementId === "all" || s.id === statementId) && s.warnings.length).map((s) => <div key={s.id} role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-900/20 dark:text-amber-100"><div className="mb-1 font-medium">Auszug {fmtDate(s.from)} – {fmtDate(s.to)}: Import prüfen</div>{s.warnings.map((w, i) => <div key={i} className="flex gap-2"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{w}</div>)}</div>)}
+          {filter === "ignoredIncome" ? <p className="text-sm text-(--text-muted)">Zeigt nur ignorierte Gutschriften. „Erneut prüfen“ gleicht zuerst vorhandene Buchungen ab. Fehlende Einnahmen erscheinen danach unter „Offen“ und können dort gebucht werden.</p> : null}
           <div className="surface overflow-x-auto">
-            {!visible.length ? <div className="p-8 text-center text-sm text-(--text-muted)">{filter === "open" ? "Alles abgeglichen – nichts offen." : "Keine Einträge."}</div> : (
+            {!visible.length ? <div className="p-8 text-center text-sm text-(--text-muted)">{q.trim() ? "Keine passenden Umsätze gefunden." : filter === "open" ? `Keine offenen Umsätze.${stats.ignored ? ` ${stats.ignored} Umsätze wurden ignoriert und sind nicht als Einnahme oder Ausgabe erfasst.` : " Alle Umsätze sind einer Buchung zugeordnet."}` : "Keine Einträge."}</div> : (
               <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-(--surface-2) text-left text-xs font-medium text-(--text-muted)"><tr><th className="px-3 py-2">Datum</th><th className="px-3 py-2">Zahlungspartner / Zweck</th><th className="px-3 py-2 text-right">Betrag</th><th className="px-3 py-2">Zuordnung</th><th className="px-3 py-2"></th></tr></thead>
                 <tbody className="divide-y divide-(--border)">
@@ -142,7 +160,7 @@ export default function Bank() {
                     const show = matched ?? suggested;
                     const cat = show?.categoryId ? cats.get(show.categoryId) : undefined;
                     return (
-                      <tr key={l.id} className={cls("hover:bg-(--surface-2)", l.status === "ignored" && "opacity-50")}>
+                      <tr key={l.id} className="hover:bg-(--surface-2)">
                         <td className="whitespace-nowrap px-3 py-2 tabular">{fmtDate(l.date)}</td>
                         <td className="w-1/2 max-w-0 px-3 py-2"><div className="truncate font-medium">{l.counterparty || "–"}</div><div className="truncate text-xs text-(--text-muted)" title={l.purpose}>{l.purpose}{l.reference ? ` · ${l.reference}` : ""}</div></td>
                         <td className={cls("whitespace-nowrap px-3 py-2 text-right tabular font-semibold", l.amountCents > 0 ? "text-emerald-600" : "")}>{l.amountCents > 0 ? "+" : ""}{fmtMoney(l.amountCents)}</td>
@@ -154,13 +172,13 @@ export default function Bank() {
                               <span className="truncate">{show.description || cat?.name}{show.contactId ? ` · ${cons.get(show.contactId)?.name ?? ""}` : ""} ({fmtDate(show.date)})</span>
                               {l.status === "suggested" && l.suggestionScore != null ? <Badge tone="warning">{Math.round(l.suggestionScore * 100)} %</Badge> : null}
                             </div>
-                          ) : l.status === "ignored" ? <Badge>ignoriert</Badge> : <Badge tone="danger">keine Buchung</Badge>}
+                          ) : l.status === "ignored" ? <div><Badge>ignoriert</Badge><div className="mt-1 text-xs text-(--text-muted)">{l.ignoreReason || "Keine Begründung gespeichert"}</div></div> : <Badge tone="danger">keine Buchung</Badge>}
                         </td>
                         <td className="whitespace-nowrap px-2 py-2 text-right">
                           {l.status === "suggested" ? <><Button size="sm" variant="outline" onClick={() => acceptSuggestion(l)} title="Vorschlag übernehmen"><Check className="h-4 w-4" /> Ja</Button> <Button size="sm" variant="ghost" onClick={() => setLinking(l)} title="Andere Buchung wählen"><Link2 className="h-4 w-4" /></Button></> : null}
-                          {l.status === "unmatched" ? <><Button size="sm" onClick={() => startBooking(l)}><Plus className="h-4 w-4" /> Buchen</Button> <Button size="sm" variant="ghost" onClick={() => setLinking(l)} title="Bestehender Buchung zuordnen"><Link2 className="h-4 w-4" /></Button> <Button size="sm" variant="ghost" onClick={() => setStatus(l, "ignored")} title="Ignorieren (privat/Umbuchung)"><EyeOff className="h-4 w-4" /></Button></> : null}
+                          {l.status === "unmatched" ? <><Button size="sm" onClick={() => startBooking(l)}><Plus className="h-4 w-4" /> Buchen</Button> <Button size="sm" variant="ghost" onClick={() => setLinking(l)} title="Bestehender Buchung zuordnen"><Link2 className="h-4 w-4" /></Button> <Button size="sm" variant="ghost" onClick={() => setStatus(l, "ignored")} title="Umsatz aus Einnahmen und Ausgaben ausschließen"><EyeOff className="h-4 w-4" /></Button></> : null}
                           {l.status === "matched" || l.status === "booked" ? <Button size="sm" variant="ghost" onClick={() => setStatus(l, "unmatched", undefined)} title="Zuordnung lösen"><X className="h-4 w-4" /></Button> : null}
-                          {l.status === "ignored" ? <Button size="sm" variant="ghost" onClick={() => setStatus(l, "unmatched")}>Zurück</Button> : null}
+                          {l.status === "ignored" ? <Button size="sm" variant="outline" onClick={() => { setStatus(l, "unmatched"); runReconcile(); }}>Erneut prüfen</Button> : null}
                         </td>
                       </tr>
                     );
@@ -178,9 +196,13 @@ export default function Bank() {
         </>
       )}
       <Modal open={!!booking} onClose={() => setBooking(null)} title="Buchung aus Kontoauszug anlegen" size="lg" footer={<><Button variant="ghost" onClick={() => setBooking(null)}>Abbrechen</Button><Button onClick={confirmBooking}><FileCheck2 className="h-4 w-4" /> Buchen</Button></>}>
-        {booking ? <><div className="mb-3 rounded-lg bg-(--surface-2) px-3 py-2 text-xs"><ArrowLeftRight className="mr-1 inline h-3.5 w-3.5" />{fmtDate(booking.line.date)} · {booking.line.counterparty} · {booking.line.purpose}</div><TransactionForm value={booking.tx} onChange={(t) => setBooking({ ...booking, tx: t })} /></> : null}
+        {booking ? <><div className="mb-3 rounded-lg bg-(--surface-2) px-3 py-2 text-xs"><ArrowLeftRight className="mr-1 inline h-3.5 w-3.5" />{fmtDate(booking.line.date)} · {booking.line.counterparty} · {booking.line.purpose}</div>{needsBankTransferReview(booking.line) ? <p role="status" className="mb-3 text-sm">Mögliche Umbuchung oder Bargeldbehebung: Prüfe den Zahlungsweg. Geld zwischen eigenen Konten oder zur eigenen Kasse verschieben zählt nicht als Einnahme oder Ausgabe. Wähle dafür „Umbuchung“ und die passenden Zahlungsarten.</p> : null}<TransactionForm value={booking.tx} onChange={(t) => setBooking({ ...booking, tx: t })} /></> : null}
       </Modal>
       <LinkDialog line={linking} onClose={() => setLinking(null)} />
+      <Modal open={reviewIgnored} onClose={() => setReviewIgnored(false)} title="Ignorierte Eingänge erneut prüfen" size="lg" footer={<><Button variant="ghost" onClick={() => setReviewIgnored(false)}>Abbrechen</Button><Button onClick={restoreIgnored}>Abgleich starten</Button></>}>
+        <p className="mb-3 text-sm">{ignoredIncome.length} Eingänge mit insgesamt {fmtMoney(stats.ignoredCreditCents)} werden wieder geprüft. Vorhandene Buchungen werden zuerst abgeglichen; fehlende bleiben offen. Echte Umbuchungen kannst du anschließend wieder ausschließen.</p>
+        <ul className="divide-y divide-(--border)">{ignoredIncome.map((l) => <li key={l.id} className="flex gap-3 py-2 text-sm"><span className="shrink-0 tabular">{fmtDate(l.date)}</span><span className="min-w-0 flex-1 break-words">{l.counterparty}<span className="block text-xs text-(--text-muted)">{l.purpose}</span></span><span className="shrink-0 tabular">+{fmtMoney(l.amountCents)}</span></li>)}</ul>
+      </Modal>
     </div>
   );
 }

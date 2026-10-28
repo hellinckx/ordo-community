@@ -3,6 +3,7 @@ import { VaultStore, type Mode, type Vault, type VaultHeader } from "@ordo/core"
 import { getPlatform } from "@/platform";
 import { forgetOnDevice, recallFromDevice, rememberOnDevice } from "@/services/deviceUnlock";
 import type { Platform } from "@/platform";
+import { clearDrafts } from "@/atlas/drafts";
 
 export type SessionStatus = "loading" | "no-vault" | "locked" | "unlocked" | "error";
 
@@ -105,6 +106,7 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async lock() {
     const { store } = get();
+    clearDrafts();
     await forgetOnDevice();
     unsubscribe?.();
     unsubscribe = null;

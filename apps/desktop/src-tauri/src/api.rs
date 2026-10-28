@@ -87,7 +87,7 @@ fn handle(app: AppHandle, mut req: tiny_http::Request, port: u16, tokens: Arc<Mu
         None => (url.clone(), String::new()),
     };
     if path == "/" || path == "/v1" || path == "/v1/" {
-        return respond(req, 200, &serde_json::json!({ "app": "Ordo", "api": "ordo.v1", "docs": "https://ordo-app.at/schnittstellen/" }).to_string());
+        return respond(req, 200, &serde_json::json!({ "app": "Ordo", "api": "ordo.v1", "docs": "https://ordo-business.netlify.app/schnittstellen/" }).to_string());
     }
     let token = header(&req, "Authorization")
         .and_then(|v| v.strip_prefix("Bearer ").or_else(|| v.strip_prefix("bearer ")).map(|s| s.trim().to_string()))

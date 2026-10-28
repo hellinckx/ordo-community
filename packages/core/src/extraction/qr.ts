@@ -117,7 +117,7 @@ export function fieldsFromQr(payloads: QrPayload[]): { fields: Partial<Extracted
       confidence.vatLines = 0.99;
       confidence.invoiceNumber = 0.95;
       confidence.documentType = 0.99;
-      notes.push(`RKSV-QR gelesen: Kassen-ID ${p.kassenId}, Beleg ${p.belegNummer}, ${p.date} ${p.time}`);
+      notes.push(`RKSV-QR gelesen: Kassen-ID ${p.kassenId}, Bon ${p.belegNummer}, ${p.date} ${p.time}`);
     } else if (p.kind === "epc") {
       if (p.iban) {
         fields.vendorIban = p.iban;

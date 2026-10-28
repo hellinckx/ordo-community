@@ -2,6 +2,7 @@ import { computeNotifications, dueRecurring, invoiceTotalCents, todayIso, type V
 import type { Platform } from "@/platform";
 import { toast } from "@/state/toasts";
 import { requireStore } from "@/state/session";
+import { shrinkOldPreviews, sweepUnusedAttachments } from "@/services/storageCleanup";
 
 /**
  * Runs after unlock and once per hour: materializes recurring transactions, marks overdue invoices,
@@ -54,6 +55,14 @@ export async function runHousekeeping(store: VaultStore, platform: Platform, opt
 
   // 4) Purge soft-deleted entities older than 60 days
   store.purgeDeleted(60);
+
+  // 5) Storage: small previews instead of big ones, and files nothing uses any more (after the trash)
+  try {
+    await shrinkOldPreviews(store);
+    await sweepUnusedAttachments(store);
+  } catch {
+    /* locked meanwhile or a file not readable – the next run tries again */
+  }
 }
 
 export function markNotificationRead(id: string) {

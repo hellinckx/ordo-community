@@ -271,6 +271,15 @@ export const TransactionSchema = z.object({
   autoBooked: z.boolean().optional(),
   /** Cost or income of a project (Ordo Projekte). */
   projectId: z.string().optional(),
+  /** Parameters reviewed alongside an investment invoice. */
+  assetSettings: z.object({
+    inServiceDate: isoDate.optional(),
+    usefulLifeYears: z.number().min(1).max(100),
+    method: z.enum(["linear", "degressive", "gwg", "none"]),
+    degressiveRatePct: z.number().min(0.01).max(30).default(30),
+    privateUsePct: z.number().min(0).max(100).default(0),
+    ekrAccount: z.string().regex(/^0\d{3}$/),
+  }).optional(),
   legacyRef,
 });
 export type Transaction = z.infer<typeof TransactionSchema>;
@@ -403,14 +412,25 @@ export const AssetSchema = z.object({
   profileId: z.string(),
   name: z.string(),
   acquisitionDate: isoDate,
+  inServiceDate: isoDate.optional(),
+  supplierName: z.string().optional(),
+  supplierAddress: z.string().optional(),
+  inventoryNumber: z.string().optional(),
+  /** Explicitly reviewed eligibility, never inferred from the invoice amount or useful life alone. */
+  gfbEligible: z.boolean().optional(),
+  /** Optional opening balance for historical assets imported at the start of a financial year. */
+  openingBalanceDate: isoDate.optional(),
+  /** Purchase cost last synchronised from the linked booking; preserves subsequent capitalised costs. */
+  purchaseCostCents: cents.optional(),
   costCents: cents,
   usefulLifeYears: z.number().min(1).max(100),
-  method: z.enum(["linear", "degressive", "gwg"]).default("linear"),
+  method: z.enum(["linear", "degressive", "gwg", "none"]).default("linear"),
   degressiveRatePct: z.number().default(30),
   /** Nutzung für Privatanteil (in %) – mindert AfA. */
   privateUsePct: z.number().min(0).max(100).default(0),
   disposedAt: isoDate.optional(),
   disposalProceedsCents: cents.optional(),
+  disposalTransactionId: z.string().optional(),
   transactionId: z.string().optional(),
   ekrAccount: z.string().default("0600"),
   categoryId: z.string().optional(),
@@ -426,6 +446,8 @@ export const InvoiceLineSchema = z.object({
   unitNetCents: cents,
   vatRate: vatRate.default(20),
   discountPct: z.number().default(0),
+  /** Article from Produkte & Lager – a stock-tracked one leaves the stock when the invoice is finished. */
+  productId: z.string().optional(),
 });
 export type InvoiceLine = z.infer<typeof InvoiceLineSchema>;
 
@@ -600,8 +622,6 @@ export const EmailSettingsSchema = z.object({
   invoiceText: z.string().default("Guten Tag,\n\nim Anhang finden Sie unsere Rechnung {nummer} über {betrag}, fällig am {faellig}.\n\nVielen Dank für Ihren Auftrag!\n\nFreundliche Grüße\n{firma}"),
   reminderSubject: z.string().default("Zahlungserinnerung: Rechnung {nummer}"),
   reminderText: z.string().default("Guten Tag,\n\nunsere Rechnung {nummer} über {betrag} war am {faellig} fällig. Vielleicht ist sie untergegangen – wir freuen uns über die Zahlung in den nächsten Tagen. Die Rechnung liegt nochmals bei.\n\nFalls Sie bereits bezahlt haben, betrachten Sie diese Nachricht bitte als gegenstandslos.\n\nFreundliche Grüße\n{firma}"),
-  /** Brevo contact list the newsletter goes to (created on first sync). */
-  brevoListId: z.number().int().optional(),
 });
 export type EmailSettings = z.infer<typeof EmailSettingsSchema>;
 
@@ -638,6 +658,15 @@ export const SettingsSchema = z.object({
   localApi: LocalApiSettingsSchema.default(() => LocalApiSettingsSchema.parse({})),
   /** E-Mail module: own Brevo account. */
   email: EmailSettingsSchema.default(() => EmailSettingsSchema.parse({})),
+  /** Der Alles-Check: how often it runs by itself while Ordo is open, and the counts of the last run. */
+  allCheck: z
+    .object({
+      interval: z.enum(["daily", "weekly", "off"]).default("daily"),
+      lastRunAt: z.string().optional(),
+      lastErrors: z.number().int().default(0),
+      lastWarnings: z.number().int().default(0),
+    })
+    .default(() => ({ interval: "daily" as const, lastErrors: 0, lastWarnings: 0 })),
   /** Small UI choices that should follow the user across devices. */
   ui: z
     .object({
@@ -718,6 +747,7 @@ export const BankLineSchema = z.object({
   /** Stable fingerprint for de-duplication across overlapping statements. */
   hash: z.string(),
   status: BankLineStatusSchema.default("unmatched"),
+  ignoreReason: z.string().optional(),
   matchedTransactionId: z.string().optional(),
   /** Suggested match before confirmation. */
   suggestedTransactionId: z.string().optional(),

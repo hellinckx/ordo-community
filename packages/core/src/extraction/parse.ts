@@ -152,7 +152,7 @@ export function parseReceiptText(rawText: string, opts: { ownNames?: string[]; o
     fields.invoiceDate = invoiceHit.iso;
     conf.invoiceDate = /(rechnungsdatum|belegdatum|datum|date)/.test(invoiceHit.context) ? 0.9 : plausible.length === 1 ? 0.75 : 0.55;
   } else if (dates.length) {
-    warnings.push("Kein plausibles Belegdatum gefunden (nur zukünftige/alte Daten).");
+    warnings.push("Kein plausibles Rechnungsdatum gefunden (nur zukünftige/alte Daten).");
   }
   const dueHit = plausible.find((d) => /(fällig|zahlbar bis|zahlungsziel|due date|due by|zahlbar)/.test(d.context) && d.iso !== fields.invoiceDate);
   if (dueHit) {

@@ -5,6 +5,9 @@ import {
   lineFromGross,
   nowIso,
   transactionFromBankLine,
+  bankIgnoreError,
+  needsBankTransferReview,
+  candidatesForLine,
   type EntityCollection,
   type Offer,
   type Project,
@@ -678,7 +681,7 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
         description:
           "Bucht eingelesene Rechnungen und Bons mit status \"review\" endgültig: Summa hat beim Einlesen schon eine Buchung vorbereitet (transactionId), die hier bestätigt wird. Ist die vorbereitete Kategorie falsch, die Buchung vorher mit update_record korrigieren; ist es in Wahrheit eine Einnahme statt einer Ausgabe, der Person sagen. Vorher mit get_record (documents und die Buchung) prüfen; Unklares (Betrag fehlt, unleserlich) nicht buchen, sondern der Person sagen.",
         input: z.object({
-          documents: z.array(z.string().describe("id der eingelesenen Rechnung")).min(1).max(40),
+          documents: z.array(z.string().describe("id der eingelesenen Rechnung")).min(1).max(150),
         }),
         kind: "write",
         atlasArea: "incoming",
@@ -687,6 +690,18 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
         // works on text from third parties (Verwendungszweck, read invoices): one look at the batch before it runs
         alwaysConfirm: true,
         preview: (i) => `${i.documents.length} eingelesene Rechnung${i.documents.length === 1 ? "" : "en"} buchen`,
+        // the card shows each invoice in plain words, so the person sees what gets booked before saying yes
+        details: (i, ctx) => {
+          const v = ctx.store.vault;
+          const cats = new Map(v.categories.map((c) => [c.id, c.name]));
+          const rows = i.documents.map((id) => {
+            const d = v.documents.find((x) => x.id === id);
+            const t = d?.transactionId ? v.transactions.find((x) => x.id === d.transactionId) : undefined;
+            const who = (t?.contactId ? v.contacts.find((c) => c.id === t.contactId)?.name : undefined) ?? d?.extraction?.fields.vendorName ?? "";
+            return [d?.originalName ?? "nicht gefunden", who, t ? (t.grossCents / 100).toLocaleString("de-AT", { style: "currency", currency: "EUR" }) : "–", t?.categoryId ? (cats.get(t.categoryId) ?? "") : "ohne Kategorie"];
+          });
+          return { type: "table", columns: ["Datei", "Von", "Betrag", "Kategorie"], rows };
+        },
         run(i, ctx) {
           const v = ctx.store.vault;
           const done: string[] = [];
@@ -727,7 +742,7 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
       defineTool({
         name: "settle_bank_lines",
         description:
-          "Erledigt offene Kontoauszugszeilen (status unmatched/suggested) in einem Schritt: \"match\" ordnet einer bestehenden Buchung zu (target = id der Buchung, z. B. suggestedTransactionId), \"book\" legt aus der Zeile eine neue Einnahme/Ausgabe an (Ordo erkennt Kontakt, Kategorie und USt-Satz selbst; target = Kategorie nur, wenn du es besser weißt), \"ignore\" für private Umsätze oder Umbuchungen zwischen eigenen Konten. Erst mit list_records (bankLines, status) und den Vorschlägen prüfen.",
+          "Erledigt offene Kontoauszugszeilen (status unmatched/suggested): match ordnet einer bestehenden Buchung zu (target = Buchungs-ID), book legt eine fehlende Einnahme/Ausgabe an (target = Kategorie nur bei besserem Vorschlag). ignore ist nur im Firmenprofil für eindeutig nicht betriebliche Umsätze mit reason erlaubt. Im Privatprofil zählen auch Taschengeld, Geschenke und Unterstützung zum Budget; niemals deshalb ignorieren. Unklare Umbuchungen offen lassen. Erst bankLines und bestehende Buchungen prüfen.",
         input: z.object({
           lines: z
             .array(
@@ -735,10 +750,11 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
                 line: z.string().describe("id der Kontoauszugszeile"),
                 action: z.enum(["match", "book", "ignore"]),
                 target: z.string().optional().describe("Bei match: id der Buchung. Bei book: Kategorie (id oder Name), nur wenn Ordos Vorschlag falsch ist"),
+                reason: z.string().optional().describe("Bei ignore: nachvollziehbarer Grund, weshalb der Umsatz nicht betrieblich ist"),
               }),
             )
             .min(1)
-            .max(60),
+            .max(250),
         }),
         kind: "write",
         atlasArea: "bank",
@@ -750,20 +766,49 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
           const n = (a: string) => i.lines.filter((l) => l.action === a).length;
           return [n("match") ? `${n("match")} zuordnen` : "", n("book") ? `${n("book")} neu buchen` : "", n("ignore") ? `${n("ignore")} ignorieren` : ""].filter(Boolean).join(", ") + " (Kontoauszug)";
         },
+        // every line in plain words: date, who, amount and what happens to it
+        details: (i, ctx) => {
+          const v = ctx.store.vault;
+          const p = ctx.profile;
+          const cats = new Map(v.categories.map((c) => [c.id, c.name]));
+          const eur = (c: number) => (c / 100).toLocaleString("de-AT", { style: "currency", currency: "EUR" });
+          const contacts = v.contacts.filter((c) => c.profileId === ctx.profileId);
+          const rows = i.lines.map((item) => {
+            const l = v.bankLines.find((x) => x.id === item.line);
+            if (!l) return ["–", "Zeile nicht gefunden", "", ""];
+            let what = `Ignorieren: ${item.reason?.trim() || "Begründung fehlt"}`;
+            if (item.action === "match") {
+              const t = item.target ? v.transactions.find((x) => x.id === item.target) : undefined;
+              what = t ? `Zuordnen: ${t.description || cats.get(t.categoryId ?? "") || "Buchung"} vom ${fmtDate(t.date)}` : "Zuordnen: Buchung nicht gefunden";
+            } else if (item.action === "book") {
+              const base = transactionFromBankLine(l, ctx.profileId, p.mode, v.categories, contacts, p.vatRegime);
+              const cat = item.target ? (v.categories.find((c) => c.id === item.target)?.name ?? item.target) : (cats.get(base.categoryId ?? "") ?? "ohne Kategorie");
+              what = `Neu buchen als ${l.amountCents > 0 ? "Einnahme" : "Ausgabe"}: ${cat}`;
+            }
+            return [fmtDate(l.date), l.counterparty || l.purpose.slice(0, 40), eur(l.amountCents), what];
+          });
+          return { type: "table", columns: ["Datum", "Zahlungspartner", "Betrag", "Was passiert"], rows };
+        },
         run(i, ctx) {
           const v = ctx.store.vault;
           const p = ctx.profile;
           const done: string[] = [];
           const errors: string[] = [];
           for (const item of i.lines) {
-            const line = v.bankLines.find((l) => l.id === item.line && l.profileId === ctx.profileId && !l.deletedAt);
+            const line = ctx.store.vault.bankLines.find((l) => l.id === item.line && l.profileId === ctx.profileId && !l.deletedAt);
             if (!line) {
               errors.push(`${item.line}: Zeile nicht gefunden`);
               continue;
             }
             const now = nowIso();
+            if (line.status !== "unmatched" && line.status !== "suggested") {
+              errors.push(`${line.id}: bereits erledigt oder ignoriert; zuerst in Kontoauszüge prüfen`);
+              continue;
+            }
             if (item.action === "ignore") {
-              ctx.store.update("bankLines", line.id, { status: "ignored", updatedAt: now }, "atlas.settle_bank_lines");
+              const error = bankIgnoreError(line, p.mode, item.reason);
+              if (error) { errors.push(`${line.id}: ${error}`); continue; }
+              ctx.store.update("bankLines", line.id, { status: "ignored", ignoreReason: item.reason!.trim(), suggestedTransactionId: undefined, suggestionScore: undefined, updatedAt: now }, "atlas.settle_bank_lines");
               done.push(line.id);
               continue;
             }
@@ -773,13 +818,22 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
                 errors.push(`${line.id}: Buchung ${item.target ?? "(keine)"} nicht gefunden`);
                 continue;
               }
+              const taken = new Set(ctx.store.vault.bankLines.filter((l) => !l.deletedAt && l.id !== line.id && l.matchedTransactionId).map((l) => l.matchedTransactionId!));
+              if (!candidatesForLine(line, [tx], new Map(), taken).length) {
+                errors.push(`${line.id}: Betrag, Richtung oder Zeitraum passt nicht, oder die Buchung ist bereits zugeordnet`);
+                continue;
+              }
               ctx.store.update("bankLines", line.id, { status: "matched", matchedTransactionId: tx.id, suggestedTransactionId: undefined, updatedAt: now }, "atlas.settle_bank_lines");
               done.push(line.id);
               continue;
             }
+            if (needsBankTransferReview(line)) {
+              errors.push(`${line.id}: Mögliche Umbuchung oder Bargeldbehebung. Eigene Konten und Zahlungsweg zuerst mit der Person klären; nicht als Einnahme oder Ausgabe buchen.`);
+              continue;
+            }
             const contacts = v.contacts.filter((c) => c.profileId === ctx.profileId);
             const base = transactionFromBankLine(line, ctx.profileId, p.mode, v.categories, contacts, p.vatRegime);
-            const kind = base.kind === "transfer" ? (line.amountCents > 0 ? "income" : "expense") : base.kind;
+            const kind = base.kind;
             let categoryId = base.categoryId;
             let rate = base.vatLines[0]?.rate ?? 20;
             if (item.target) {
@@ -794,7 +848,7 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
               rate = cat.defaultVatRate;
             }
             const ku = kind === "income" && p.vatRegime === "kleinunternehmer";
-            if (ku) rate = 0;
+            if (ku || p.mode === "employee") rate = 0;
             try {
               const tx = validate<Transaction>(def("transactions"), {
                 ...base,

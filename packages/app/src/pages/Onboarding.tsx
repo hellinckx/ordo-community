@@ -22,6 +22,8 @@ import { pendingTarget, setPendingTarget, type ServerTarget } from "@/services/s
 import { useSync } from "@/services/sync";
 import { cls } from "@/lib/format";
 import { HAS_DEFAULT_SERVER } from "@/config";
+import { OPERATOR } from "@/operator/config";
+import { isOrdoServer } from "@/services/server";
 
 function passwordStrength(pw: string): { score: number; label: string } {
   let score = 0;
@@ -70,6 +72,7 @@ export default function Onboarding() {
   const [ownDb, setOwnDb] = useState<"setup" | "join" | null>(null);
   // no preconfigured server (community edition): signing in needs an own database first
   const needsServer = !HAS_DEFAULT_SERVER && !target;
+  const privateTarget = !!OPERATOR.privateInstance && isOrdoServer(target?.url);
   const chooseTarget = (t: ServerTarget | null) => {
     setPendingTarget(t);
     setTarget(t);
@@ -161,7 +164,7 @@ export default function Onboarding() {
 
   const tabs = (
     <div className="grid grid-cols-2 border-b border-(--border)">
-      {(["login", "register"] as const).map((t) => (
+      {(["login", "register"] as const).filter((t) => t !== "register" || !privateTarget).map((t) => (
         <button key={t} type="button" onClick={() => { setEntry(t); setAuthError(null); setWaitlist(false); }} className={cls("inline-flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors", entry === t ? "border-b-2 border-brand-600 text-brand-700 dark:text-brand-300" : "text-(--text-muted) hover:text-(--text)")}>
           {t === "login" ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
           {t === "login" ? "Anmelden" : "Konto erstellen"}
@@ -192,7 +195,7 @@ export default function Onboarding() {
           ) : <>
           {entry !== "forgot" ? tabs : null}
           {entry === "forgot" ? (
-            <PasswordReset initialEmail={email} onBack={() => setEntry("login")} onRegister={() => { setEntry("register"); setAuthError(null); }} />
+            <PasswordReset initialEmail={email} onBack={() => setEntry("login")} onRegister={() => { if (privateTarget) setOwnDb("setup"); else setEntry("register"); setAuthError(null); }} />
           ) : entry === "login" ? (
             <form onSubmit={doLogin} className="space-y-4 p-6">
               <ServerChip target={target} onChange={() => setOwnDb("join")} onReset={() => chooseTarget(null)} />
@@ -204,7 +207,7 @@ export default function Onboarding() {
               {mfaStep ? <div className="rounded-xl bg-(--surface-2) p-3"><p className="mb-2 text-sm">Dein Konto ist mit einer Authenticator-App geschützt.</p><AuthenticatorCodeField value={mfaCode} onChange={setMfaCode} autoFocus /></div> : null}
               {authError ? <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-200">{authError}</div> : null}
               <Button type="submit" className="w-full justify-center" loading={authBusy} disabled={!email.includes("@") || !password || (mfaStep && mfaCode.length !== 6)}><LogIn className="h-4 w-4" /> Anmelden</Button>
-              <p className="text-center text-xs text-(--text-muted)">Noch kein Konto? <button type="button" className="font-medium text-brand-700 hover:underline dark:text-brand-300" onClick={() => { setEntry("register"); setAuthError(null); }}>Jetzt kostenlos erstellen</button></p>
+              {privateTarget ? <p className="text-center text-xs text-(--text-muted)">Private Instanz für bestehende Konten. Für deine eigene Installation: <button type="button" className="font-medium text-brand-700 hover:underline dark:text-brand-300" onClick={() => setOwnDb("setup")}>Eigene Datenbank verbinden</button>.</p> : <p className="text-center text-xs text-(--text-muted)">Noch kein Konto? <button type="button" className="font-medium text-brand-700 hover:underline dark:text-brand-300" onClick={() => { setEntry("register"); setAuthError(null); }}>Jetzt kostenlos erstellen</button></p>}
             </form>
           ) : (
             <form onSubmit={doRegister} className="space-y-4 p-6">
@@ -235,10 +238,9 @@ export default function Onboarding() {
               {authError ? <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-200">{authError}</div> : null}
               {waitlist ? (
                 <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
-                  <div className="font-medium">Gerade sind alle Plätze vergeben.</div>
-                  <p className="mt-1 text-xs">Ordo ist eine private Beta. Trag dich ein, wir melden uns – oder nutze Ordo sofort kostenlos mit deiner eigenen Datenbank, oder ohne Konto nur auf diesem Gerät.</p>
+                  <div className="font-medium">Neue Konten sind hier gesperrt.</div>
+                  <p className="mt-1 text-xs">Verwende ein bestehendes Konto, verbinde deine eigene Datenbank oder starte lokal ohne Konto.</p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {PARTS.joinWaitlist ? <Button type="button" size="sm" onClick={() => void PARTS.joinWaitlist!(email).then(() => { toast.success("Du bist auf der Warteliste"); setWaitlist(false); }).catch((err: unknown) => toast.error("Fehler", String(err)))} disabled={!email.includes("@")}>Auf die Warteliste</Button> : null}
                     <Button type="button" size="sm" variant="outline" onClick={() => setOwnDb("setup")}><Database className="h-4 w-4" /> Eigene Datenbank</Button>
                   </div>
                 </div>
@@ -441,7 +443,7 @@ function ModeCard({ active, onClick, icon, title, body }: { active: boolean; onC
   );
 }
 
-/** "Noch 19 von 20 kostenlosen Plätzen frei" – live from the server, hidden when offline. */
+/** Own database usage only; private operator deployments never fetch or display capacity. */
 function CapacityLine({ target }: { target: ServerTarget | null }) {
   const [cap, setCap] = useState<{ max: number; free: number; open: boolean } | null>(null);
   useEffect(() => {
@@ -453,13 +455,5 @@ function CapacityLine({ target }: { target: ServerTarget | null }) {
     return () => { alive = false; clearInterval(t); };
   }, [target]);
   if (!cap) return null;
-  if (target) {
-    return <div className="rounded-xl bg-(--surface-2) px-3 py-2 text-sm">{cap.open ? <>In deiner Datenbank sind noch <strong className="tabular">{cap.free} von {cap.max}</strong> Konten frei.</> : <>In dieser Datenbank sind gerade keine neuen Konten möglich – der Admin kann das unter Server-Einstellungen ändern.</>}</div>;
-  }
-  return (
-    <div className="rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-900 dark:bg-brand-950/60 dark:text-brand-100">
-      {cap.open ? <><strong className="tabular">Noch {cap.free} von {cap.max}</strong> kostenlosen Plätzen in der Beta frei.</> : <>Gerade sind alle {cap.max} Beta-Plätze vergeben – du kannst dich auf die Warteliste setzen.</>}
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-brand-100 dark:bg-brand-900"><div className="h-full rounded-full bg-brand-700" style={{ width: `${Math.min(100, ((cap.max - cap.free) / Math.max(1, cap.max)) * 100)}%` }} /></div>
-    </div>
-  );
+  return <div className="rounded-xl bg-(--surface-2) px-3 py-2 text-sm">{cap.open ? <>In deiner Datenbank sind noch <strong className="tabular">{cap.free} von {cap.max}</strong> Konten frei.</> : <>In dieser Datenbank sind gerade keine neuen Konten möglich – die Administration kann das in den Server-Einstellungen ändern.</>}</div>;
 }

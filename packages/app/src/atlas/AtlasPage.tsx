@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { History, MoreHorizontal, Pencil, Pin, PinOff, Plus, Trash2 } from "lucide-react";
 import type { AtlasChat } from "@ordo/core";
 import { Badge, Button, ConfirmDialog, Input, Menu, Modal } from "@/components/ui";
@@ -21,6 +21,13 @@ export default function AtlasPage() {
   const [deleting, setDeleting] = useState<AtlasChat | null>(null);
   const missing = !!chatId && !chat;
   const badge = modelBadge(chat, run);
+  const location = useLocation();
+  // Opening Atlas continues the last conversation of the past day; "Neues Gespräch" starts empty on purpose.
+  useEffect(() => {
+    if (chatId || (location.state as { fresh?: boolean } | null)?.fresh) return;
+    const last = [...chats].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    if (last && Date.now() - Date.parse(last.updatedAt) < 24 * 3600_000) navigate(`/atlas/${last.id}`, { replace: true });
+  }, [chatId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const list = (
     <ChatList
@@ -32,7 +39,7 @@ export default function AtlasPage() {
       }}
       onNew={() => {
         setListOpen(false);
-        navigate("/atlas");
+        navigate("/atlas", { state: { fresh: true } });
       }}
       onRename={setRenaming}
       onDelete={setDeleting}
@@ -49,7 +56,7 @@ export default function AtlasPage() {
           </button>
           <AtlasMark size="sm" className="hidden sm:inline-flex" />
           <h1 className="min-w-0 truncate text-[17px] font-semibold tracking-tight">{chat?.title ?? "Atlas"}</h1>
-          {badge ? <Badge className="hidden sm:inline-flex">{badge}</Badge> : null}
+          {badge ? <Badge className="max-sm:hidden">{badge}</Badge> : null}
           <div className="ml-auto flex items-center gap-1">
             {chat ? (
               <Menu
@@ -65,7 +72,7 @@ export default function AtlasPage() {
                 ]}
               />
             ) : null}
-            <Button variant="outline" size="sm" onClick={() => navigate("/atlas")} disabled={!chatId}>
+            <Button variant="outline" size="sm" onClick={() => navigate("/atlas", { state: { fresh: true } })} disabled={!chatId}>
               <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Neues Gespräch</span>
             </Button>
           </div>
@@ -75,7 +82,7 @@ export default function AtlasPage() {
           {missing ? (
             <div className="flex h-full flex-col items-center justify-center text-center">
               <p className="text-sm text-(--text-muted)">Dieses Gespräch gibt es nicht mehr.</p>
-              <Button className="mt-3" onClick={() => navigate("/atlas")}>Neues Gespräch</Button>
+              <Button className="mt-3" onClick={() => navigate("/atlas", { state: { fresh: true } })}>Neues Gespräch</Button>
             </div>
           ) : (
             <ChatView key={chatId ?? "new"} chatId={chatId} onChatCreated={(id) => navigate(`/atlas/${id}`, { replace: true })} />
@@ -97,7 +104,7 @@ export default function AtlasPage() {
         onConfirm={() => {
           if (!deleting) return;
           deleteChat(deleting.id);
-          if (deleting.id === chatId) navigate("/atlas", { replace: true });
+          if (deleting.id === chatId) navigate("/atlas", { replace: true, state: { fresh: true } });
         }}
       />
     </div>

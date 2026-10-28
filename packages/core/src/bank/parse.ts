@@ -253,7 +253,7 @@ export function parseCamt(xml: string): ParsedStatement {
 /* PDF text layer (heuristic)                                          */
 /* ------------------------------------------------------------------ */
 
-const NOISE = /^(seite|page|kontoauszug|auszug|blatt|iban|bic|datum|buchung|valuta|betrag|saldo|umsatz|alter saldo|neuer saldo|zwischensumme)/i;
+const NOISE = /^(seite|page|kontoauszug|auszug|blatt|iban|bic|datum|buchung|valuta|betrag|saldo|umsatz|alter saldo|neuer saldo|anfangssaldo|endsaldo|schlusssaldo|vortrag|zwischensumme)/i;
 
 export function parseBankPdfText(text: string): ParsedStatement {
   const out: ParsedStatement = { format: "pdf", iban: "", accountName: "", bankName: "", lines: [], warnings: [] };
@@ -393,6 +393,23 @@ export function fromAiBankOutput(ai: AiBankOutput): ParsedStatement {
   if (ai.notes) out.warnings.push(`KI-Hinweis: ${ai.notes}`);
   finalize(out);
   return out;
+}
+
+/** More extracted rows alone do not prove a better reading. Preserve source balances and check the sum. */
+export function selectBankExtraction(local: ParsedStatement, ai: ParsedStatement): ParsedStatement {
+  const candidate: ParsedStatement = {
+    ...ai,
+    openingBalanceCents: local.openingBalanceCents ?? ai.openingBalanceCents,
+    closingBalanceCents: local.closingBalanceCents ?? ai.closingBalanceCents,
+    warnings: ai.warnings.filter((w) => !w.startsWith("Saldenprüfung:")),
+  };
+  finalize(candidate);
+  const balanced = (s: ParsedStatement) => s.openingBalanceCents !== undefined && s.closingBalanceCents !== undefined
+    && Math.abs(s.openingBalanceCents + s.lines.reduce((n, l) => n + l.amountCents, 0) - s.closingBalanceCents) <= 1;
+  if (candidate.lines.length && balanced(candidate) && !balanced(local)) return candidate;
+  if (balanced(local) && !balanced(candidate)) return { ...local, warnings: [...local.warnings, "KI-Erkennung verworfen: Die erkannten Umsätze passen nicht zu den Salden des Auszugs."] };
+  if (candidate.lines.length >= local.lines.length) return candidate;
+  return { ...local, warnings: [...local.warnings, "KI-Erkennung lieferte weniger Umsätze. Bitte den Import mit dem Original vergleichen."] };
 }
 
 /** Fingerprint for dedupe across overlapping statement exports. */

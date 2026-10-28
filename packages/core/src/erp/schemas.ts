@@ -263,7 +263,10 @@ export const StockMoveSchema = z.object({
   unitCostCents: cents.optional(),
   note: z.string().default(""),
   workOrderId: z.string().optional(),
+  /** Outgoing invoice / credit note that moved the stock. */
   invoiceId: z.string().optional(),
+  /** Incoming invoice (expense booking) the goods came with. */
+  transactionId: z.string().optional(),
   contactId: z.string().optional(),
 });
 export type StockMove = z.infer<typeof StockMoveSchema>;
@@ -409,6 +412,8 @@ export const AtlasSettingsSchema = z.object({
    * A missing key means the area's default ("write", except outgoing invoices and team = "read").
    */
   areas: z.record(z.string(), z.enum(["none", "read", "write"])).default({}),
+  /** Fähigkeiten switched on or off (see `ATLAS_SKILLS` in the app); a missing key uses the skill's default. */
+  skills: z.record(z.string(), z.boolean()).default({}),
 });
 export type AtlasSettings = z.infer<typeof AtlasSettingsSchema>;
 

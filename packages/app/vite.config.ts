@@ -15,6 +15,7 @@ export default defineConfig({
   base: web ? "/app/" : "/",
   define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "0.1.0") },
   plugins: [
+    { name: "ordo-version", generateBundle() { this.emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify({ version: process.env.npm_package_version ?? "0.1.0" }) }); } },
     react(),
     tailwindcss(),
     ...(single ? [viteSingleFile()] : []),
@@ -27,7 +28,7 @@ export default defineConfig({
               name: "Ordo",
               short_name: "Ordo",
               description: "Buchhaltung, Projekte und Lager für Selbstständige und kleine Firmen – lokal und verschlüsselt.",
-              theme_color: "#0a5fe0",
+              theme_color: "#f5f5f7",
               background_color: "#f5f5f7",
               display: "standalone",
               id: "/app/",

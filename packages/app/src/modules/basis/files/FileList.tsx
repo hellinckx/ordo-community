@@ -11,6 +11,7 @@ import { cls, fmtBytes, fmtDate } from "@/lib/format";
 import { ensureFolderFor, filesFromDrop, findOwnerFolder, folderAndDescendants, downloadAttachment, pickFiles, sameLink, uploadFiles, type IncomingFile } from "./fileStore";
 import { FileTile } from "./parts";
 import { FileDetail } from "./FileDetail";
+import { FileDropHint } from "@/components/FileDropHint";
 
 const hasFiles = (e: DragEvent) => e.dataTransfer.types.includes("Files");
 
@@ -134,7 +135,7 @@ export function FileList({ link, title = "Dateien", className, emptyText }: { li
             {canWrite ? emptyText ?? "Noch keine Dateien. Zieh Pläne, Verträge oder Fotos hierher oder lade sie hoch." : "Noch keine Dateien."}
           </div>
         )}
-        {over && list.length ? <div className="border-t border-(--border) px-5 py-2 text-center text-xs font-medium text-brand-700 dark:text-brand-400">Loslassen zum Hochladen</div> : null}
+        {canWrite ? <div className="p-4"><FileDropHint disabled={busy} onChoose={async () => void add(await pickFiles())}>{over ? "Loslassen zum Hochladen" : "Dateien hierher ziehen oder auswählen"}</FileDropHint></div> : null}
       </Card>
       <FileDetail fileId={openId} onClose={() => setOpenId(null)} />
     </div>

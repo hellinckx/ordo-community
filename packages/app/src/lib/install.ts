@@ -50,7 +50,8 @@ export const useInstall = create<InstallState>((set, get) => ({
     await p.prompt();
     const { outcome } = await p.userChoice;
     set({ prompt: null });
-    if (outcome === "accepted") set({ installed: true, open: false });
+    // stays open on "Fertig", so the person sees that it worked
+    if (outcome === "accepted") set({ installed: true });
     return outcome === "accepted";
   },
 }));
@@ -62,10 +63,22 @@ export function setupInstall(): void {
     e.preventDefault();
     useInstall.setState({ prompt: e as InstallPrompt });
   });
-  window.addEventListener("appinstalled", () => useInstall.setState({ installed: true, prompt: null, open: false }));
+  window.addEventListener("appinstalled", () => useInstall.setState({ installed: true, prompt: null }));
   try {
     if (sessionStorage.getItem(INSTALL_KEY) && isPhone() && !isStandalone()) useInstall.setState({ open: true });
   } catch {
     /* private mode */
   }
+}
+
+/**
+ * Colour of the phone's status and gesture bar (installed app and mobile browsers): the app's own background, so
+ * the bars blend in – and the chosen design (Hell/Dunkel) wins over the system setting.
+ */
+export function setThemeColor(dark: boolean): void {
+  const color = dark ? "#0c0c0e" : "#f5f5f7";
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((m) => {
+    m.removeAttribute("media");
+    m.content = color;
+  });
 }

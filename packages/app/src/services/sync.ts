@@ -256,6 +256,7 @@ export const useSync = create<SyncState>((set, get) => ({
     await get().refreshMeta();
   },
   async signUp(email, password) {
+    if (OPERATOR.privateInstance && !get().ownServer) throw new SignupClosedError("closed");
     const c = get().client;
     if (!c) throw new Error("Sync nicht konfiguriert.");
     // The server enforces the cap with a trigger; asking first gives a friendly answer instead of a 500.
@@ -367,7 +368,7 @@ export const useSync = create<SyncState>((set, get) => ({
       const lastSynced = Number(localStorage.getItem(REV_KEY) ?? 0);
       const seen = localStorage.getItem(SEEN_KEY);
       const remoteMark = meta ? mark(meta.revision as number, meta.device_id as string | null) : null;
-      const localChanged = localRevision !== lastSynced;
+      let localChanged = localRevision !== lastSynced;
       // something new on the server: a state this device has not seen (before this version: a higher revision)
       const remoteNew = remoteMark !== null && (seen ? remoteMark !== seen : remoteRevision! > lastSynced);
       let pulled = false;
@@ -379,6 +380,9 @@ export const useSync = create<SyncState>((set, get) => ({
         const { header, payload } = readHeader(bytes);
         const json = await openVaultPayload(header, (store as unknown as { masterKey: CryptoKey }).masterKey, payload);
         const remote = migrateVault(JSON.parse(json));
+        // Something may have changed here while the download ran (Atlas booking, an import) – then the remote state
+        // must be merged in, never replace what was just written on this device.
+        if (store.vault.revision !== localRevision) localChanged = true;
         // settings travel too (AI keys, Atlas, connections, theme …), area by area; folder paths stay on this device
         if (!localChanged) {
           store.mutate((v) => Object.assign(v, { ...remote, settings: mergeSettings(v.settings, remote.settings, "remote") }));
@@ -391,6 +395,7 @@ export const useSync = create<SyncState>((set, get) => ({
         pulled = true;
       }
 
+      if (!localChanged && store.vault.revision !== localRevision && !pulled) localChanged = true;
       if (!localChanged) {
         // nothing changed here: the server already has this state, only files that are new over there come down
         let downloaded = 0;
@@ -402,31 +407,35 @@ export const useSync = create<SyncState>((set, get) => ({
         return;
       }
 
-      // push
+      // push – remember which state goes up: changes made while uploading are not on the server yet
       await store.flush();
+      const pushedRev = store.vault.revision;
       const sealed = await store.exportSealed();
       const maxMb = planLimitMb(get().plan, get().serverSettings);
       const blobBytes = store.vault.attachments.filter((a) => !a.deletedAt).reduce((s, a) => s + a.size, 0);
-      if (sealed.byteLength + blobBytes > maxMb * 1024 * 1024) throw new Error(`Speicherlimit (${maxMb} MB) erreicht – ${((sealed.byteLength + blobBytes) / 1048576).toFixed(0)} MB belegt. Belege als ZIP auslagern oder Tarif erhöhen.`);
+      if (sealed.byteLength + blobBytes > maxMb * 1024 * 1024) throw new Error(`Speicherlimit (${maxMb} MB) erreicht – ${((sealed.byteLength + blobBytes) / 1048576).toFixed(0)} MB belegt. Alte Rechnungen als ZIP sichern und löschen oder den Tarif erhöhen.`);
       const up = await client.storage.from(BUCKET).upload(`${uid}/vault.summa`, new Blob([sealed as BlobPart]), { upsert: true, contentType: "application/octet-stream" });
       if (up.error) throw new Error(translateAuthError(up.error.message));
 
       const { uploaded, downloaded, downloadedBytes, remoteCount } = await syncBlobs(client, uid, store, true);
-      const rev = store.vault.revision;
-      const { error: metaErr } = await client.from("summa_vault_meta").upsert({ user_id: uid, revision: rev, device_id: deviceId, vault_bytes: sealed.byteLength, blob_count: remoteCount + uploaded });
+      const { error: metaErr } = await client.from("summa_vault_meta").upsert({ user_id: uid, revision: pushedRev, device_id: deviceId, vault_bytes: sealed.byteLength, blob_count: remoteCount + uploaded });
       if (metaErr) throw new Error(metaErr.message);
-      localStorage.setItem(REV_KEY, String(rev));
+      localStorage.setItem(REV_KEY, String(pushedRev));
+      // only when nothing else changed meanwhile, the own "last synced" stamp counts as synced too; otherwise the
+      // newer changes stay marked as not uploaded and go up with the next sync
+      const untouched = store.vault.revision === pushedRev;
       store.mutate((v) => {
         v.settings = { ...v.settings, sync: { ...v.settings.sync, lastSyncAt: nowIso() } };
       });
-      localStorage.setItem(REV_KEY, String(store.vault.revision));
-      await client.from("summa_vault_meta").update({ revision: store.vault.revision }).eq("user_id", uid);
-      localStorage.setItem(SEEN_KEY, mark(store.vault.revision, deviceId));
+      const syncedRev = untouched ? store.vault.revision : pushedRev;
+      localStorage.setItem(REV_KEY, String(syncedRev));
+      if (untouched) await client.from("summa_vault_meta").update({ revision: syncedRev }).eq("user_id", uid);
+      localStorage.setItem(SEEN_KEY, mark(syncedRev, deviceId));
       await logEntry("push", true, `${uploaded} hoch, ${downloaded} runter`, sealed.byteLength);
       // file downloads count as traffic on the Supabase plan – logged so the usage estimate can include them
       if (downloadedBytes) await logEntry("download", true, `${downloaded} Dateien`, downloadedBytes);
       set({ status: "idle", lastSyncAt: nowIso(), remoteRevision: store.vault.revision });
-      if (!opts.silent) toast.success("Synchronisiert", `${(sealed.byteLength / 1024).toFixed(0)} KB · ${uploaded} Belege hochgeladen, ${downloaded} geladen`);
+      if (!opts.silent) toast.success("Synchronisiert", `${(sealed.byteLength / 1024).toFixed(0)} KB · ${uploaded} Dateien hochgeladen, ${downloaded} geladen`);
     } catch (e) {
       let msg = e instanceof Error ? e.message : String(e);
       if (get().ownServer && /fetch|network|Failed to|Verbindung/i.test(msg)) msg = `${serverLabel(get().serverUrl)} ist nicht erreichbar. Ist dein Supabase-Projekt pausiert? Im Supabase-Dashboard auf „Restore project“ drücken.`;
@@ -462,6 +471,15 @@ async function syncBlobs(client: SupabaseClient, uid: string, store: VaultStore,
         downloadedBytes += bytes.byteLength;
       }
     }
+  }
+  // Files the vault no longer has (removed after the trash, replaced previews) go from the server too. Only when
+  // pushing, never with an empty vault, and only files older than a few days – another device may just be
+  // uploading files whose records it has not pushed yet.
+  if (upload && store.vault.attachments.length) {
+    const known = new Set(store.vault.attachments.map((a) => a.id));
+    const cutoff = Date.now() - 3 * 86400_000;
+    const stale = (remoteList ?? []).filter((f) => !known.has(f.name.replace(/\.bin$/, "")) && Date.parse(f.created_at ?? f.updated_at ?? "") < cutoff).map((f) => `${uid}/blobs/${f.name}`);
+    for (let i = 0; i < stale.length; i += 100) await client.storage.from(BUCKET).remove(stale.slice(i, i + 100));
   }
   return { uploaded, downloaded, downloadedBytes, remoteCount: remoteIds.size };
 }
@@ -527,11 +545,14 @@ export async function ensureBlob(id: string, storage: { readBlob(id: string): Pr
 
 /** Free beta places (anonymous numbers only). Null when offline. */
 export async function fetchCapacity(target?: ServerTarget | null): Promise<{ max: number; used: number; free: number; open: boolean } | null> {
+  if (OPERATOR.privateInstance && isOrdoServer(target?.url)) return null;
   const { url, anonKey } = target ?? { url: SUMMA_SYNC_DEFAULT.url, anonKey: SUMMA_SYNC_DEFAULT.anonKey };
   if (!url || !anonKey) return null;
   try {
     const res = await fetch(`${url.replace(/\/+$/, "")}/rest/v1/rpc/summa_public_capacity`, { method: "POST", headers: { apikey: anonKey, "Content-Type": "application/json" }, body: "{}" });
-    return res.ok ? await res.json() : null;
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.private === true ? null : data;
   } catch {
     return null;
   }

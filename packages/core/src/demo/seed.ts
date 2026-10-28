@@ -231,7 +231,11 @@ export function seedDemoVault(vault: Vault, opts: { today?: string } = {}): Demo
       if (isPast(date) && rnd() > 0.25) tx(b, "expense", date, cents(jitter(68, 0.3)), "cat_b_ex_treibstoff", cOmv, { description: "Diesel OMV", paymentMethod: "card", vatDeductiblePct: 0 });
     }
     const lunch = iso(y, m, 9 + Math.floor(rnd() * 10));
-    if (isPast(lunch) && rnd() > 0.3) tx(b, "expense", lunch, cents(jitter(64, 0.4)), "cat_b_ex_bewirtung", cBilla, { description: "Geschäftsessen / Bewirtung Kunde", paymentMethod: "card", vatLines: [lineFromGross(cents(jitter(64, 0.4)), 10)] });
+    if (isPast(lunch) && rnd() > 0.3) {
+      // one amount for the total and the VAT split – two draws made them disagree
+      const lunchCents = cents(jitter(64, 0.4));
+      tx(b, "expense", lunch, lunchCents, "cat_b_ex_bewirtung", cBilla, { description: "Geschäftsessen / Bewirtung Kunde", paymentMethod: "card", vatLines: [lineFromGross(lunchCents, 10)] });
+    }
     const office = iso(y, m, 21);
     if (isPast(office) && rnd() > 0.4) tx(b, "expense", office, cents(jitter(38, 0.5)), "cat_b_ex_buero", cLibro, { description: "Büromaterial", paymentMethod: "card" });
     const ads = iso(y, m, 2);

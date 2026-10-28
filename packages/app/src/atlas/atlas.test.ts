@@ -52,7 +52,9 @@ describe("toolset", () => {
     const strict = a.defs.filter((d) => d.strict);
     expect(strict.length).toBeLessThanOrEqual(STRICT_LIMITS.tools);
     expect(strict.reduce((s, d) => s + schemaComplexity(d.schema).optional, 0)).toBeLessThanOrEqual(STRICT_LIMITS.optional);
-    expect(strict.filter((d) => d.kind === "write").length).toBe(a.defs.filter((d) => d.kind === "write").length);
+    expect(strict.reduce((s, d) => s + JSON.stringify(d.schema).length, 0)).toBeLessThanOrEqual(STRICT_LIMITS.chars);
+    // write tools get the strict slots first
+    expect(a.defs.find((d) => d.kind === "write")?.strict).toBe(true);
     const walk = (n: unknown): void => {
       if (!n || typeof n !== "object") return;
       const o = n as Record<string, unknown>;
@@ -285,8 +287,8 @@ describe("area access (Einstellungen → Atlas)", () => {
     const open = tools("owner", "auto", ALL, { outgoing: "write" });
     expect(open.byName.has("create_invoice_draft")).toBe(true);
     expect(open.byName.has("update_invoice_draft")).toBe(true);
-    // every write tool still fits into strict mode
-    expect(open.defs.filter((d) => d.kind === "write").every((d) => d.strict)).toBe(true);
+    // more write tools never push the strict tools past the grammar budget
+    expect(open.defs.filter((d) => d.strict).reduce((s, d) => s + JSON.stringify(d.schema).length, 0)).toBeLessThanOrEqual(STRICT_LIMITS.chars);
     // team is read-only by default too: no generic write tool offers members
     expect(def.defs.some((d) => d.kind === "write" && JSON.stringify(d.schema).includes('"members"'))).toBe(false);
   });
@@ -346,16 +348,23 @@ describe("prompt, routing and transcripts", () => {
     expect(c).toMatch(/Aktuelle Seite: \/projekte/);
   });
 
+  it("answers short by default, and the skills can be switched", () => {
+    expect(systemPrompt(ALL, "")).toContain("Antwortlänge: kurz");
+    const off = systemPrompt(ALL, "", { short: false, net: true });
+    expect(off).not.toContain("Antwortlänge: kurz");
+    expect(off).toContain("netto");
+  });
+
   it("picks the effort per request", () => {
     expect(pickEffort("Welche Aufgaben sind überfällig?")).toBe("low");
     expect(pickEffort("Erfasse 2 Stunden auf das Projekt Website")).toBe("medium");
     expect(pickEffort("Wie lief das letzte Quartal?")).toBe("high");
     expect(pickEffort("Umsatz pro Kunde als Diagramm")).toBe("high");
     expect(pickEffort("Leg drei Aufgaben an und setze danach das Projekt auf aktiv")).toBe("high");
-    const r = route({ provider: "claude", model: "auto", permission: "confirm", consent: true, instructions: "", codexModel: "", openaiModel: "gpt-5.4", areas: {} }, "Hallo?");
+    const r = route({ provider: "claude", model: "auto", permission: "confirm", consent: true, instructions: "", codexModel: "", openaiModel: "gpt-5.4", areas: {}, skills: {} }, "Hallo?");
     expect(r.model).toBe("claude-opus-5-5");
-    expect(route({ provider: "claude", model: "claude-haiku-5-5", permission: "confirm", consent: true, instructions: "", codexModel: "", openaiModel: "gpt-5.4", areas: {} }, "x").effort).toBe("medium");
-    expect(route({ provider: "openai", model: "auto", permission: "confirm", consent: true, instructions: "", codexModel: "", openaiModel: "gpt-5.4", areas: {} }, "Wie lief das letzte Quartal?")).toMatchObject({ provider: "openai", model: "gpt-5.4", effort: "high" });
+    expect(route({ provider: "claude", model: "claude-haiku-5-5", permission: "confirm", consent: true, instructions: "", codexModel: "", openaiModel: "gpt-5.4", areas: {}, skills: {} }, "x").effort).toBe("medium");
+    expect(route({ provider: "openai", model: "auto", permission: "confirm", consent: true, instructions: "", codexModel: "", openaiModel: "gpt-5.4", areas: {}, skills: {} }, "Wie lief das letzte Quartal?")).toMatchObject({ provider: "openai", model: "gpt-5.4", effort: "high" });
   });
 
   it("turns the stored chat into valid Messages API turns", () => {
@@ -406,5 +415,21 @@ describe("OpenAI transcript", () => {
       { role: "assistant", content: "5 € sind offen." },
       { role: "assistant", content: "Erledigt\n[add_time: 2 h]" },
     ]);
+  });
+});
+
+describe("Pictures for Atlas", () => {
+  it("adds an image still in memory to the person's message, for Claude and OpenAI", async () => {
+    const { rememberImage } = await import("./vision");
+    const { toOpenAiInput } = await import("./providers/openai");
+    expect(await rememberImage("att_shot1", new Uint8Array([1, 2, 3]), "image/png", { screen: true, width: 10, height: 10 })).toBe(true);
+    const at = "2026-10-23T10:00:00.000Z";
+    const history: AtlasMessage[] = [{ id: "1", role: "user", text: "Was ist das?\n\n📎 Bildschirmfoto.png (3 B) – Bildschirmfoto von Ordo [Datei-ID: att_shot1]\n📎 alt.png (1 B) – Bild [Datei-ID: att_gone]", at, toolCalls: [], visuals: [] }];
+    const claude = toClaudeMessages(history)[0]!.content as { type: string; source?: { data: string; media_type: string } }[];
+    expect(claude.filter((b) => b.type === "image")).toEqual([{ type: "image", source: { type: "base64", media_type: "image/png", data: "AQID" } }]);
+    const openai = toOpenAiInput(history)[0] as { content: { type: string; image_url?: string }[] };
+    expect(openai.content.filter((c) => c.type === "input_image")).toEqual([{ type: "input_image", image_url: "data:image/png;base64,AQID" }]);
+    // without a picture in memory the message stays plain text
+    expect(toOpenAiInput([{ ...history[0]!, text: "Hallo" }])[0]).toEqual({ role: "user", content: "Hallo" });
   });
 });

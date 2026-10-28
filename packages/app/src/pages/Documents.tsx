@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { AlertTriangle, ArrowLeft, ArrowLeftRight, Camera, Check, ChevronLeft, ChevronRight, Copy, FileStack, Pause, Play, RefreshCw, Trash2, Undo2, Upload, X, Sparkles, Wand2, Zap } from "lucide-react";
-import { CLAUDE_AUTO_MODEL, documentDirection, estimateReadCostCents, extractionModelLabel, fieldStates as computeFieldStates, nowIso, type FieldStateKey, type SummaDocument, type Transaction } from "@ordo/core";
+import { CLAUDE_AUTO_MODEL, documentDirection, estimateReadCostCents, extractionModelLabel, fieldStates as computeFieldStates, isGoodsCategory, nowIso, type FieldStateKey, type SummaDocument, type Transaction } from "@ordo/core";
 import { useList, useProfile, useVault } from "@/state/hooks";
 import { requireStore, useSession } from "@/state/session";
 import { Badge, Button, ConfirmDialog, EmptyState, Kbd, Modal, PageHeader, Progress, Spinner, Tabs } from "@/components/ui";
@@ -13,11 +13,15 @@ import { toast, useToasts } from "@/state/toasts";
 import { cls, fmtDate, fmtMoney, fmtRelative } from "@/lib/format";
 import { isMobile } from "@/platform";
 import { IntakeButton } from "@/components/Intake";
+import { FileDropHint } from "@/components/FileDropHint";
 import { EnableClaudeDialog } from "@/components/AiProviderSetup";
 import { FolderLinkButton, FolderLinks } from "@/components/FolderLinks";
 import { aiReadiness, type AiReadiness } from "@/services/extraction";
 import { rereadSummary, useAiReread, type RereadScope } from "@/services/aiReread";
 import { useAskAtlas } from "@/atlas/hooks";
+import { useIsInstalled } from "@/modules/registry";
+import { NO_PURCHASE_STOCK, PurchaseStockCard, type PurchaseStock } from "@/modules/produkte/PurchaseStockCard";
+import { bookPurchaseStock } from "@/services/invoiceStock";
 
 type Filter = "review" | "all" | "approved" | "rejected" | "error";
 type Direction = "eingang" | "ausgang";
@@ -133,6 +137,7 @@ export default function Documents() {
           </>
         }
       />
+      <FileDropHint onChoose={() => void pick(false)}>Rechnungen und Kassenbons ins Fenster ziehen oder Dateien auswählen</FileDropHint>
       {running.length ? (
         <div className="surface flex items-center gap-3 px-4 py-2 text-sm">
           <Spinner className="h-4 w-4" />
@@ -238,6 +243,12 @@ function ReviewPane({ doc, onPrev, onNext, afterAction, onMoved, profileId }: { 
   const [aiDetail, setAiDetail] = useState<string | null>(null);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [enableClaude, setEnableClaude] = useState(false);
+  const produkte = useIsInstalled("produkte");
+  const products = useList("products");
+  const stockMoves = useList("stockMoves");
+  const [stock, setStock] = useState<PurchaseStock>(NO_PURCHASE_STOCK);
+  // Goods purchase (Wareneinkauf/Material, a supplier of an article, or already in stock) → offer "Ins Lager buchen".
+  const showStock = produkte && value.kind === "expense" && (stock.open || isGoodsCategory(vault.categories.find((c) => c.id === value.categoryId)) || (!!value.contactId && products.some((p) => p.supplierId === value.contactId)) || stockMoves.some((m) => m.transactionId === value.id));
 
   useEffect(() => {
     if (existing) setValue(existing);
@@ -297,9 +308,13 @@ function ReviewPane({ doc, onPrev, onNext, afterAction, onMoved, profileId }: { 
       toast.warning(err);
       return;
     }
-    const saved = bookDocument(doc, value, { draftCategoryId: existing?.categoryId });
-    toast.success("Gebucht", `${fmtMoney(saved.grossCents)} · ${saved.description || "Buchung"}`);
-    afterAction();
+    try {
+      const saved = bookDocument(doc, value, { draftCategoryId: existing?.categoryId });
+      const stocked = showStock && stock.open ? bookPurchaseStock(saved, stock.lines, { updateCost: stock.updateCost }) : 0;
+      if (stocked) setStock(NO_PURCHASE_STOCK);
+      toast.success("Gebucht", `${fmtMoney(saved.grossCents)} · ${saved.description || "Buchung"}${stocked ? ` · ${stocked === 1 ? "ein Artikel" : `${stocked} Artikel`} ins Lager` : ""}`);
+      afterAction();
+    } catch (error) { toast.error("Buchung konnte nicht gespeichert werden", error instanceof Error ? error.message : String(error)); }
   };
   const reopen = () => {
     reopenDocument(doc);
@@ -396,6 +411,7 @@ function ReviewPane({ doc, onPrev, onNext, afterAction, onMoved, profileId }: { 
               {doc.status === "duplicate" ? <div className="mb-3 rounded-lg bg-slate-100 p-2 text-xs"><Copy className="mr-1 inline h-3 w-3" />Diese Datei ist schon in Ordo.</div> : null}
               {direction === "outgoing" ? <div className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-100">Rechnung an einen Kunden – zählt als <strong>Einnahme</strong> und bleibt offen, bis das Geld am Konto eingegangen ist.</div> : null}
               <TransactionForm value={value} onChange={change} confidence={ex?.confidence} fieldStates={states} openMore={openMore} suggestedVendor={value.kind === "income" ? ex?.fields.customerName : ex?.fields.vendorName} />
+              {showStock ? <PurchaseStockCard tx={value} lineItems={ex?.fields.lineItems ?? []} value={stock} onChange={setStock} /> : null}
               {ex?.fields.lineItems.length ? (
                 <details className="mt-4">
                   <summary className="cursor-pointer text-sm text-(--text-muted)">Positionen ({ex.fields.lineItems.length})</summary>

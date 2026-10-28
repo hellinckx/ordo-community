@@ -1,7 +1,7 @@
 import { Component, useEffect, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { useSession } from "@/state/session";
-import { Toaster, Spinner, Button } from "@/components/ui";
+import { Toaster, Spinner, Button, ConfirmDialog } from "@/components/ui";
 import { AppShell } from "@/components/AppShell";
 import Onboarding from "@/pages/Onboarding";
 import Unlock from "@/pages/Unlock";
@@ -15,6 +15,10 @@ import { startSyncLoop, useSync } from "@/services/sync";
 import { startIntegrations } from "@/services/integrations/runner";
 import { AlertTriangle } from "lucide-react";
 import { InstallApp } from "@/components/InstallApp";
+import { setThemeColor } from "@/lib/install";
+import { useLeaveGuard } from "@/lib/leaveGuard";
+import { resumeInterrupted } from "@/atlas/engine";
+import { allCheckDue, runFullCheck } from "@/services/allCheck";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -67,6 +71,7 @@ function useTheme() {
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       const dark = theme === "dark" || (theme === "system" && prefersDark);
       document.documentElement.dataset.theme = dark ? "dark" : "light";
+      setThemeColor(dark);
       try {
         localStorage.setItem("summa.theme", theme === "system" ? (dark ? "dark" : "light") : theme);
       } catch {
@@ -124,6 +129,48 @@ function useIntegrations() {
   }, [status, store]);
 }
 
+/** "Noch nicht fertig" – before Ordo reloads or the desktop window closes while something runs. */
+function LeaveDialog() {
+  const { pending, cancel, confirm } = useLeaveGuard();
+  return (
+    <ConfirmDialog
+      open={!!pending}
+      onClose={cancel}
+      danger
+      title="Noch nicht fertig"
+      body={<>{pending?.what.map((w) => <p key={w} className="font-medium text-(--text)">{w}</p>)}<p className="mt-2">Wenn du jetzt neu lädst oder schließt, bricht das ab und was gerade gelesen wird, geht verloren. Warte lieber kurz, bis es fertig ist.</p></>}
+      confirmLabel="Trotzdem abbrechen"
+      onConfirm={confirm}
+    />
+  );
+}
+
+/** Der Alles-Check by itself, about daily or weekly as set – only while someone has Ordo open and visible. */
+function useAllCheckSchedule() {
+  const status = useSession((s) => s.status);
+  useEffect(() => {
+    if (status !== "unlocked") return;
+    const tick = () => {
+      if (document.visibilityState === "visible" && allCheckDue()) void runFullCheck({ auto: true });
+    };
+    // a little after opening, when sync and folders have settled
+    const first = setTimeout(tick, 20_000);
+    const every = setInterval(tick, 30 * 60_000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(every);
+    };
+  }, [status]);
+}
+
+/** Atlas runs that a reload or restart cut off continue once the vault is open again. */
+function useResumeAtlas() {
+  const status = useSession((s) => s.status);
+  useEffect(() => {
+    if (status === "unlocked") void resumeInterrupted();
+  }, [status]);
+}
+
 function useFlushOnUnload() {
   useEffect(() => {
     const handler = () => {
@@ -177,6 +224,8 @@ export default function App() {
   useFolderWatch();
   useSyncLoop();
   useIntegrations();
+  useResumeAtlas();
+  useAllCheckSchedule();
 
   let content: ReactNode;
   if (status === "loading") {
@@ -209,6 +258,7 @@ export default function App() {
     <ErrorBoundary>
       {content}
       <InstallApp />
+      <LeaveDialog />
       <Toaster />
     </ErrorBoundary>
   );

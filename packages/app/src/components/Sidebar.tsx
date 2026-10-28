@@ -1,6 +1,7 @@
 import { useMemo, type ComponentType } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { ChevronDown, LayoutGrid, Settings as SettingsIcon, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ChevronDown, LayoutGrid, Loader2, MessageCircleQuestion, Settings as SettingsIcon, ShieldCheck, Sparkles, X } from "lucide-react";
+import { useAtlasActivity } from "@/atlas/AtlasActivity";
 import { useProfile, useSettingsMutator, useVault } from "@/state/hooks";
 import { useSync } from "@/services/sync";
 import { cls } from "@/lib/format";
@@ -93,7 +94,9 @@ export function useNavModel() {
   }, [modules, vault, profile, isAdmin, location.pathname, location.search]);
 }
 
-export function Sidebar() {
+/** `solid`: on the phone the sidebar lies over the page – no see-through glass there. */
+export function Sidebar({ solid }: { solid?: boolean } = {}) {
+  const atlasActivity = useAtlasActivity();
   const nav = useNavModel();
   const vault = useVault();
   const mutate = useSettingsMutator();
@@ -104,6 +107,7 @@ export function Sidebar() {
   const link = (n: NavItem) => {
     const active = nav.isActive(n.to);
     const Icon = n.icon;
+    const activityHere = atlasActivity.filter(({ run }) => n.to === "/atlas" || run.workArea?.path === n.to || run.workArea?.path.startsWith(n.to + "/"));
     return (
       <Link
         key={n.to}
@@ -116,13 +120,14 @@ export function Sidebar() {
       >
         <Icon className={cls("h-[17px] w-[17px] shrink-0 transition-colors", active ? "text-brand-700 dark:text-brand-400" : "text-(--text-muted) group-hover:text-(--text)")} />
         <span className="min-w-0 flex-1 truncate">{n.label}</span>
+        {activityHere.some(({ run }) => run.status === "running") ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-brand-700 motion-reduce:animate-none dark:text-brand-300" aria-label="Atlas arbeitet hier" /> : activityHere.length ? <MessageCircleQuestion className="h-3.5 w-3.5 shrink-0 text-brand-700 dark:text-brand-300" aria-label="Atlas wartet hier auf dich" /> : null}
         {n.badge ? <span className="min-w-5 rounded-full bg-brand-700 px-1.5 text-center text-[11px] leading-5 font-semibold text-white tabular" title={`${n.badge} zum Prüfen`}>{n.badge}</span> : null}
       </Link>
     );
   };
 
   return (
-    <aside className="glass flex h-full w-[272px] shrink-0 flex-col overflow-hidden border-r border-(--glass-border) bg-(--sidebar)">
+    <aside className={cls("flex h-full w-[272px] shrink-0 flex-col overflow-hidden border-r border-(--glass-border)", solid ? "bg-(--bg) shadow-pop" : "glass bg-(--sidebar)")}>
       <div className="flex h-14 items-center px-3" data-tauri-drag-region>
         <WebsiteLink className="flex items-center gap-2.5 rounded-xl px-2 py-1 transition-colors hover:bg-(--surface-2)">
           <Logo className="h-7 w-7" />

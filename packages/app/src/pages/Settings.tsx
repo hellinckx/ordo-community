@@ -23,7 +23,7 @@ import { InvoiceModeChooser } from "@/components/InvoiceModeChooser";
 import { invoiceModeOf } from "@/lib/invoiceMode";
 import { useList } from "@/state/hooks";
 import { useTour } from "@/components/Tour";
-import { FileText, Compass } from "lucide-react";
+import { FileText, Compass, Mail } from "lucide-react";
 import { enrollPasskey, passkeyRecord, platformAuthenticatorAvailable, removePasskey } from "@/services/webauthn";
 import { Fingerprint } from "lucide-react";
 import { Logo } from "@/components/Logo";
@@ -35,6 +35,7 @@ import { useAddProfileDialog } from "@/components/AddProfileDialog";
 import { TwoFactorCard } from "@/components/TwoFactor";
 import { PARTS } from "@/operator";
 import { OPERATOR } from "@/operator/config";
+import { UpdateSettings } from "@/components/AppUpdates";
 
 type Tab = "profil" | "konto" | "rechnungen" | "steuern" | "ki" | "kategorien" | "ordner" | "sicherheit" | "benachrichtigungen" | "sync" | "backup" | "ueber" | "profile" | "ki-verbrauch";
 
@@ -54,7 +55,7 @@ interface SettingsGroup {
 }
 
 /** Settings of every module tab, by id – basis tabs are placed into the app-wide groups below. */
-const MODULE_TAB_ICONS: Record<string, ComponentType<{ className?: string }>> = { atlas: Sparkles, import: Upload, schnittstellen: Cable, projekte: FolderKanban, fertigung: Factory };
+const MODULE_TAB_ICONS: Record<string, ComponentType<{ className?: string }>> = { atlas: Sparkles, import: Upload, schnittstellen: Cable, projekte: FolderKanban, fertigung: Factory, email: Mail };
 
 /**
  * Einstellungen: first what applies to all of Ordo (account, company, security, Atlas & AI, data & interfaces), then
@@ -477,6 +478,18 @@ function NotificationsTab() {
   const platform = useSession((s) => s.platform);
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <Card title="Alles-Check">
+        <div className="space-y-2 text-sm">
+          <p className="text-(--text-muted)">Prüft Buchungen, Rechnungen, Kontoauszüge und Projekte nach festen Regeln, liest vorher die verbundenen Ordner und gleicht ab. Läuft nur, solange Ordo offen ist – nie heimlich im Hintergrund.</p>
+          <Field label="Automatisch prüfen">
+            <Select value={vault.settings.allCheck.interval} onChange={(e) => mutate((s) => ({ ...s, allCheck: { ...s.allCheck, interval: e.target.value as "daily" | "weekly" | "off" } }))} className="w-48">
+              <option value="daily">einmal am Tag</option>
+              <option value="weekly">einmal pro Woche</option>
+              <option value="off">aus</option>
+            </Select>
+          </Field>
+        </div>
+      </Card>
       <Card title="Benachrichtigungen">
         <div className="space-y-2">
           <Switch checked={n.enabled} onChange={(b) => set({ enabled: b })} label="Hinweise aktivieren" />
@@ -756,6 +769,7 @@ function AboutTab() {
           {usage ? <><dt className="text-(--text-muted)">Größe</dt><dd>Daten {fmtBytes(usage.vaultBytes)} · Dateien {fmtBytes(usage.blobBytes)}</dd></> : null}
         </dl>
       </Card>
+      <Card title="Updates"><UpdateSettings /></Card>
       <Card title="Quellen & Rechtliches">
         <ul className="list-disc space-y-1 pl-5 text-sm text-(--text-muted)">
           <li>Kennzahlen: BMF-Formulare U 30 (2026), E 1a / E 2 (2025), L 1 / L 1ab / L 1d (2025).</li>
@@ -765,7 +779,7 @@ function AboutTab() {
           <li>OCR: Tesseract.js · PDF: pdf.js · Verschlüsselung: Web Crypto API + hash-wasm (Argon2id).</li>
         </ul>
         <div className="mt-4 border-t border-(--border) pt-3">
-          <div className="mb-1 text-xs font-medium text-(--text-muted)">{OPERATOR.provider ? "Ordo · Anbieterangaben im Impressum" : <>Ordo Community Edition · freie Software unter der GNU AGPL-3.0 · <a href={OPERATOR.website} target="_blank" rel="noreferrer" onClick={(e) => { e.preventDefault(); openExternal(OPERATOR.website); }} className="hover:underline">ordo-app.at</a></>}</div>
+          <div className="mb-1 text-xs font-medium text-(--text-muted)">{OPERATOR.provider ? "Ordo · Anbieterangaben im Impressum" : <>Ordo Community Edition · freie Software unter der GNU AGPL-3.0 · <a href={OPERATOR.website} target="_blank" rel="noreferrer" onClick={(e) => { e.preventDefault(); openExternal(OPERATOR.website); }} className="hover:underline">Website</a></>}</div>
           <LegalLinks />
         </div>
       </Card>

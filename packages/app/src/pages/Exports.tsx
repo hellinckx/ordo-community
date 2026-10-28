@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Archive, Database, FileJson, FileSpreadsheet, FileText, HardDriveDownload, Upload } from "lucide-react";
-import { transactionsCsv, journalCsv, steuerberaterCsv, buildXlsx, exportJson, parseDataExport, mergeVaults, belegeZip, deriveJournal, fromCents, todayIso, type SheetSpec } from "@ordo/core";
+import { transactionsCsv, journalCsv, steuerberaterCsv, buildXlsx, exportJson, parseDataExport, mergeVaults, belegeZip, deriveJournal, afaForYear, fromCents, todayIso, type SheetSpec } from "@ordo/core";
 import { BmdExportDialog } from "@/components/BmdExportDialog";
 import { useList, useProfile, useVault } from "@/state/hooks";
 import { requirePlatform, requireStore, useSession } from "@/state/session";
@@ -60,8 +60,8 @@ export default function Exports() {
         },
         {
           name: "Anlagen",
-          columns: [{ header: "Anlage", key: "name", width: 30 }, { header: "Anschaffung", key: "date", width: 12 }, { header: "Kosten", key: "cost", money: true }, { header: "Nutzungsdauer", key: "nd", width: 10 }, { header: "Methode", key: "method", width: 10 }],
-          rows: assets.map((a) => ({ name: a.name, date: a.acquisitionDate, cost: a.costCents, nd: a.usefulLifeYears, method: a.method })),
+          columns: [{ header: "Anlage", key: "name", width: 30 }, { header: "Inventarnummer", key: "inventory", width: 18 }, { header: "Lieferant", key: "supplier", width: 24 }, { header: "Lieferantenanschrift", key: "address", width: 35 }, { header: "Anschaffung", key: "date", width: 12 }, { header: "Inbetriebnahme", key: "service", width: 14 }, { header: "Kosten", key: "cost", money: true }, { header: "Nutzungsdauer", key: "nd", width: 10 }, { header: "Methode", key: "method", width: 10 }, { header: "EKR", key: "account", width: 8 }, { header: `AfA ${year === "all" ? new Date().getFullYear() : year}`, key: "afa", money: true }, { header: "Restbuchwert", key: "book", money: true }, { header: "Privatanteil %", key: "private", width: 12 }],
+          rows: assets.map((a) => { const r = afaForYear(a, year === "all" ? new Date().getFullYear() : Number(year)); return { name: a.name, inventory: a.inventoryNumber ?? "", supplier: a.supplierName ?? "", address: a.supplierAddress ?? "", date: a.acquisitionDate, service: a.inServiceDate ?? a.acquisitionDate, cost: a.costCents, nd: a.usefulLifeYears, method: a.method, account: a.ekrAccount, afa: r.afaCents, book: r.bookValueEndCents, private: a.privateUsePct }; }),
         },
       ];
       const bytes = await buildXlsx(sheets, { title: `Ordo Export ${suffix}` });

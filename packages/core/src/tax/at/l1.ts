@@ -50,6 +50,7 @@ export function computeL1(profile: Profile, year: number, transactions: Transact
   let uncategorized = 0;
   let privateExpenses = 0;
   let income = 0;
+  let employmentIncome = 0;
 
   for (const tx of transactions) {
     if (tx.deletedAt || tx.profileId !== profile.id) continue;
@@ -62,6 +63,8 @@ export function computeL1(profile: Profile, year: number, transactions: Transact
     if (!cat) uncategorized++;
     if (tx.kind === "income") {
       income += tx.grossCents;
+      // Household receipts (e.g. pocket money or gifts) are not a proxy for salary.
+      if (tx.categoryId === "cat_e_in_gehalt" || tx.categoryId === "cat_e_in_sonder") employmentIncome += tx.grossCents;
       continue;
     }
     const code = tx.l1KzOverride ?? cat?.l1Kz;
@@ -110,7 +113,7 @@ export function computeL1(profile: Profile, year: number, transactions: Transact
   const agbMit = sum(AGB_SB_KZ);
   const agbOhne = sum(AGB_OHNE_KZ);
 
-  const taxable = employee?.monthlyGrossCents ? estimateTaxableFromMonthlyGross(employee.monthlyGrossCents) : Math.round(income * 0.82);
+  const taxable = employee?.monthlyGrossCents ? estimateTaxableFromMonthlyGross(employee.monthlyGrossCents) : Math.round(employmentIncome * 0.82);
   const sbPct = c.agbSelbstbehalt.find((s) => taxable / 100 <= s.upTo)?.pct ?? 12;
   const selbstbehalt = roundCents((taxable * sbPct) / 100);
   const mRate = marginalRate(taxable, year);
@@ -123,6 +126,7 @@ export function computeL1(profile: Profile, year: number, transactions: Transact
   if (werbungskosten > 0 && werbungskosten <= wkPauschale) warnings.push(`Werbungskosten liegen unter dem Pauschbetrag von ${c.werbungskostenPauschale} € – bringen keine zusätzliche Ersparnis.`);
   if (agbMit > 0 && agbMit <= selbstbehalt) warnings.push(`Außergewöhnliche Belastungen (${(agbMit / 100).toFixed(2)} €) liegen unter dem geschätzten Selbstbehalt (${(selbstbehalt / 100).toFixed(2)} €, ${sbPct} %).`);
   if (!employee?.monthlyGrossCents) warnings.push("Bruttogehalt in den Einstellungen eintragen, damit Selbstbehalt und Ersparnis genauer geschätzt werden.");
+  if (!employee?.monthlyGrossCents && income !== employmentIncome) warnings.push("Die Gehaltsschätzung berücksichtigt nur Gehalt und Sonderzahlungen. Andere Budget-Einnahmen werden dadurch nicht steuerlich beurteilt.");
   if (unreviewed) warnings.push(`${unreviewed} Buchung(en) noch nicht geprüft.`);
 
   const lines: L1Line[] = L1_KENNZAHLEN.filter((k) => k.kz in kz).map((k) => ({

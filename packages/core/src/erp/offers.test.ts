@@ -337,6 +337,13 @@ describe("invoiceFromOffer", () => {
     expect(invoice.status).toBe("draft");
   });
 
+  it("keeps the article of each position (stock leaves on finishing)", () => {
+    const withProduct = { ...base, lines: base.lines.map((l, i) => (i === 0 ? { ...l, productId: "prd_poster" } : l)) };
+    const { invoice } = invoiceFromOffer(withProduct, { profile: profile(), issueDate: "2026-03-10", now: NOW, newId });
+    expect(invoice.lines[0]!.productId).toBe("prd_poster");
+    expect(invoiceFromOffer(base, { profile: profile(), issueDate: "2026-03-10", now: NOW, newId }).invoice.lines[0]).not.toHaveProperty("productId");
+  });
+
   it("can put the discount on the invoice instead", () => {
     const { invoice } = invoiceFromOffer(base, { profile: profile(), issueDate: "2026-03-10", now: NOW, newId, discountMode: "invoice" });
     expect(invoice.discountPct).toBe(10);

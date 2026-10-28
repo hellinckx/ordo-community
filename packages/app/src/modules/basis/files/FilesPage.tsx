@@ -22,6 +22,7 @@ import {
   type IncomingFile,
 } from "./fileStore";
 import { FileTile, LinkChip } from "./parts";
+import { FileDropHint } from "@/components/FileDropHint";
 import { FileDetail } from "./FileDetail";
 
 /** dataTransfer type for dragging a file entry onto a folder. */
@@ -300,6 +301,7 @@ export default function FilesPage() {
         }
       />
 
+      {canWrite && selected !== SUMMA_FOLDER ? <FileDropHint disabled={busy} onChoose={async () => void upload(await pickFiles())}>Dateien in diesen Bereich oder direkt auf einen Ordner ziehen – oder Dateien auswählen</FileDropHint> : null}
       <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
         {/* Folder tree (desktop) */}
         <aside className="surface hidden self-start p-2 lg:block">

@@ -3,7 +3,7 @@ import type { Cents } from "../model/money";
 import { roundCents } from "../model/money";
 import { SPECIAL_CATEGORIES } from "../model/defaults";
 import { ACCOUNT_INDEX, STD } from "./chart";
-import { afaForYear } from "./assets";
+import { afaForYear, afaSchedule, bookValueAt } from "./assets";
 
 export type DerivedEntry = Omit<JournalEntry, "id" | "createdAt" | "updatedAt"> & { id: string };
 
@@ -139,29 +139,38 @@ export function postingsForTransaction(tx: Transaction, profile: Profile, catego
 }
 
 /** Yearly AfA entries from the asset register (31.12.). */
-export function afaEntries(assets: Asset[], profile: Profile, year: number): Omit<DerivedEntry, "id" | "number">[] {
+export function afaEntries(assets: Asset[], profile: Profile, year: number, transactions: Transaction[] = []): Omit<DerivedEntry, "id" | "number">[] {
   const out: Omit<DerivedEntry, "id" | "number">[] = [];
   for (const a of assets) {
     if (a.deletedAt || a.profileId !== profile.id) continue;
+    if (a.openingBalanceDate && year < Number(a.openingBalanceDate.slice(0, 4))) continue;
     const r = afaForYear(a, year);
+    const purchase = transactions.find((t) => !t.deletedAt && t.profileId === profile.id && t.id === a.transactionId);
+    // A linked GWG purchase is already an expense in the transaction journal.
+    if (a.method === "gwg" && purchase) {
+      if (r.privateShareCents) out.push({ profileId: profile.id, date: purchase.date, description: `Privatanteil GWG: ${a.name}`, lines: [line(STD.privateWithdrawal, r.privateShareCents, 0, a.name), line(STD.gwg, 0, r.privateShareCents, a.name)], documentIds: purchase.documentIds, source: "auto", locked: false });
+      continue;
+    }
     if (r.afaCents > 0) {
       const afaAccount = a.method === "gwg" ? STD.gwg : a.ekrAccount.startsWith("01") ? "7020" : STD.afa;
       out.push({
         profileId: profile.id,
-        date: `${year}-12-31`,
+        date: a.disposedAt?.startsWith(String(year)) ? a.disposedAt : `${year}-12-31`,
         description: `AfA ${year}: ${a.name}`,
-        lines: [line(afaAccount, r.afaCents, 0, a.name), line(a.method === "gwg" ? a.ekrAccount : "0690", 0, r.afaCents, a.name)],
-        documentIds: [],
+        lines: [line(afaAccount, r.afaCents, 0, a.name), line(a.method === "gwg" ? a.ekrAccount : "0690", 0, r.afaCents, a.name), ...(r.privateShareCents ? [line(STD.privateWithdrawal, r.privateShareCents, 0, a.name), line(afaAccount, 0, r.privateShareCents, a.name)] : [])],
+        documentIds: purchase?.documentIds ?? [],
         source: "auto",
         locked: false,
       });
     }
-    if (r.bookValueAtDisposalCents && a.disposedAt) {
+    if (a.disposedAt?.startsWith(String(year)) && a.method !== "gwg") {
+      const accumulated = afaSchedule(a).filter((row) => row.year <= year).reduce((sum, row) => sum + row.afaCents, 0);
+      const remaining = a.costCents - accumulated;
       out.push({
         profileId: profile.id,
         date: a.disposedAt,
         description: `Anlagenabgang: ${a.name}`,
-        lines: [line(STD.bookValueDisposed, r.bookValueAtDisposalCents, 0, a.name), line(a.ekrAccount, 0, r.bookValueAtDisposalCents, a.name)],
+        lines: [...(remaining ? [line(STD.bookValueDisposed, remaining, 0, a.name)] : []), ...(accumulated ? [line("0690", accumulated, 0, a.name)] : []), line(a.ekrAccount, 0, a.costCents, a.name)],
         documentIds: [],
         source: "auto",
         locked: false,
@@ -180,14 +189,27 @@ export function deriveJournal(profile: Profile, transactions: Transaction[], ass
   const raw: Omit<DerivedEntry, "number">[] = [];
   for (const tx of transactions) {
     if (tx.deletedAt || tx.profileId !== profile.id) continue;
-    postingsForTransaction(tx, profile, catMap).forEach((e, i) => raw.push({ ...e, id: `${tx.id}:${i}` }));
+    const asset = assets.find((a) => !a.deletedAt && a.profileId === profile.id && a.transactionId === tx.id);
+    const sale = assets.find((a) => !a.deletedAt && a.profileId === profile.id && a.disposalTransactionId === tx.id);
+    const purchase = asset ? { ...tx, categoryId: asset.method === "gwg" ? SPECIAL_CATEGORIES.gwg : SPECIAL_CATEGORIES.assetPurchase, ekrAccountOverride: asset.method === "gwg" ? STD.gwg : asset.ekrAccount } : sale ? { ...tx, ekrAccountOverride: STD.assetDisposalRevenue } : tx;
+    postingsForTransaction(purchase, profile, catMap).forEach((e, i) => raw.push({ ...e, id: `${tx.id}:${i}` }));
   }
   const yearSet = new Set<number>(years ?? raw.map((e) => Number(e.date.slice(0, 4))));
-  for (const a of assets) if (!a.deletedAt && a.profileId === profile.id) yearSet.add(Number(a.acquisitionDate.slice(0, 4)));
+  for (const a of assets) if (!a.deletedAt && a.profileId === profile.id) {
+    if (!years) for (const row of afaSchedule(a)) yearSet.add(row.year);
+    if (a.openingBalanceDate && !a.transactionId) {
+      const openingYear = Number(a.openingBalanceDate.slice(0, 4));
+      const book = bookValueAt(a, openingYear - 1);
+      const accumulated = a.costCents - book;
+      if (a.method !== "gwg" && (!a.disposedAt || a.disposedAt >= a.openingBalanceDate)) raw.push({ id: `asset-opening:${a.id}`, profileId: profile.id, date: a.openingBalanceDate, description: `Anlagenübernahme: ${a.name}`, documentIds: [], source: "auto", locked: false,
+        lines: [line(a.ekrAccount, a.costCents, 0, a.name), ...(accumulated ? [line("0690", 0, accumulated, a.name)] : []), ...(book ? [line(STD.equity, 0, book, a.name)] : [])] });
+      yearSet.add(openingYear);
+    }
+  }
   const thisYear = new Date().getFullYear();
   for (const y of [...yearSet]) {
     if (y > thisYear) continue;
-    afaEntries(assets, profile, y).forEach((e, i) => raw.push({ ...e, id: `afa:${y}:${i}` }));
+    afaEntries(assets, profile, y, transactions).forEach((e, i) => raw.push({ ...e, id: `afa:${y}:${i}` }));
   }
   for (const m of manualEntries) {
     if (m.deletedAt || m.profileId !== profile.id) continue;

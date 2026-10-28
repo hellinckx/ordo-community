@@ -164,12 +164,12 @@ export function transactionFromBankLine(line: BankLine, profileId: string, mode:
       }
     }
   }
-  let categoryId = contact?.defaultCategoryId;
+  const eligible = categories.filter((c) => !c.deletedAt && !c.isArchived && c.kind === kind && (c.mode === "both" || c.mode === mode));
+  let categoryId = eligible.find((c) => c.id === contact?.defaultCategoryId)?.id;
   if (!categoryId) {
     let bestScore = 0;
-    for (const c of categories) {
-      if (c.deletedAt || c.kind !== kind || (c.mode !== "both" && c.mode !== mode)) continue;
-      for (const kw of c.keywords) {
+    for (const c of eligible) {
+      for (const kw of [...c.keywords, ...c.userKeywords]) {
         const k = norm(kw);
         if (k && text.includes(k) && k.length > bestScore) {
           bestScore = k.length;
@@ -182,25 +182,25 @@ export function transactionFromBankLine(line: BankLine, profileId: string, mode:
   const cat = categories.find((c) => c.id === categoryId);
   const gross = Math.abs(line.amountCents);
   const isKu = vatRegime === "kleinunternehmer";
-  const rate = isKu && kind === "income" ? 0 : (cat?.defaultVatRate ?? 20);
+  const rate = mode === "employee" || (isKu && kind === "income") ? 0 : (cat?.defaultVatRate ?? 20);
   const now = nowIso();
-  const isTransfer = /\b(uebertrag|umbuchung|eigenuebertrag|sparbuch|kreditkartenabrechnung|paypal transfer|eigene konten)\b/.test(text);
+  // Generic bank labels such as „Übertrag“ do not prove a transfer between one's own accounts.
+  // Keep drafts as signed income/expense; an actual transfer needs the user's account selection.
   return {
     id: ids.transaction(),
     profileId,
-    kind: isTransfer ? "transfer" : kind,
+    kind,
     date: line.date,
     paidDate: line.valueDate ?? line.date,
     description: (line.counterparty || line.purpose || "Bankumsatz").slice(0, 120),
     contactId: contact?.id,
-    categoryId: isTransfer ? undefined : categoryId,
-    vatLines: isTransfer ? [] : [lineFromGross(gross, rate)],
+    categoryId,
+    vatLines: [lineFromGross(gross, rate)],
     grossCents: gross,
     currency: line.currency || "EUR",
     vatTreatment: isKu && kind === "income" ? "kleinunternehmer" : "standard",
     vatDeductiblePct: cat?.defaultDeductiblePct ?? 100,
     paymentMethod: "bank",
-    counterPaymentMethod: isTransfer ? "cash" : undefined,
     invoiceNumber: line.reference,
     reference: line.purpose.slice(0, 200),
     documentIds: [],
@@ -220,6 +220,8 @@ export interface ReconcileStats {
   suggested: number;
   unmatched: number;
   ignored: number;
+  ignoredCreditCents: number;
+  ignoredCredits: number;
   unmatchedDebitCents: number;
   unmatchedCreditCents: number;
   /** transactions paid by bank in the period without any bank line */
@@ -228,14 +230,17 @@ export interface ReconcileStats {
 
 export function reconcileStats(lines: BankLine[], transactions: Transaction[], from?: string, to?: string): ReconcileStats {
   const matchedTx = new Set(lines.map((l) => l.matchedTransactionId).filter(Boolean));
-  const stats: ReconcileStats = { total: 0, matched: 0, booked: 0, suggested: 0, unmatched: 0, ignored: 0, unmatchedDebitCents: 0, unmatchedCreditCents: 0, unbankedTransactions: [] };
+  const stats: ReconcileStats = { total: 0, matched: 0, booked: 0, suggested: 0, unmatched: 0, ignored: 0, ignoredCreditCents: 0, ignoredCredits: 0, unmatchedDebitCents: 0, unmatchedCreditCents: 0, unbankedTransactions: [] };
   for (const l of lines) {
     if (l.deletedAt) continue;
     stats.total++;
     if (l.status === "matched") stats.matched++;
     else if (l.status === "booked") stats.booked++;
     else if (l.status === "suggested") stats.suggested++;
-    else if (l.status === "ignored") stats.ignored++;
+    else if (l.status === "ignored") {
+      stats.ignored++;
+      if (l.amountCents > 0) { stats.ignoredCredits++; stats.ignoredCreditCents += l.amountCents; }
+    }
     else {
       stats.unmatched++;
       if (l.amountCents < 0) stats.unmatchedDebitCents += -l.amountCents;

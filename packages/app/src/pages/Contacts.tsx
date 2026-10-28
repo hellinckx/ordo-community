@@ -70,6 +70,7 @@ function ContactList() {
   const txs = useList("transactions");
   const cats = useCategoryMap();
   const summa = useIsInstalled("summa");
+  const mailInstalled = useIsInstalled("post");
   const { role } = useMe();
   const canWrite = can(role, "contacts", "write");
   const showMoney = summa && can(role, "summa", "read");
@@ -127,7 +128,7 @@ function ContactList() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, Nummer, Ort, Person …" className="pl-9" />
         </div>
-        <Tabs tabs={[{ id: "all", label: "Alle" }, { id: "customer", label: "Kunden" }, { id: "vendor", label: "Lieferanten" }, { id: "both", label: "Beides" }]} value={kind} onChange={setKind} />
+        <Tabs tabs={[{ id: "all", label: "Alle" }, { id: "customer", label: "Kunden" }, { id: "vendor", label: "Lieferanten" }, { id: "both", label: "Kunde & Lieferant" }]} value={kind} onChange={setKind} />
         {archivedCount || status === "archived" ? (
           <Tabs tabs={[{ id: "active", label: "Aktiv" }, { id: "archived", label: `Archiviert (${archivedCount})` }]} value={status} onChange={setStatus} />
         ) : null}
@@ -201,6 +202,7 @@ function ContactDetail({ id }: { id: string }) {
   const cats = useCategoryMap();
   const navigate = useNavigate();
   const summa = useIsInstalled("summa");
+  const mailInstalled = useIsInstalled("post");
   const projekte = useIsInstalled("projekte");
   const { role } = useMe();
   const canRead = can(role, "contacts", "read");
@@ -538,6 +540,7 @@ export function ContactDialog({ open, onClose, contact, kind, onSaved, onDeleted
   const vault = useVault();
   const contacts = useList("contacts");
   const summa = useIsInstalled("summa");
+  const mailInstalled = useIsInstalled("post");
   const { role } = useMe();
   const canDelete = can(role, "contacts", "admin");
   const blank = (): Contact => ({ id: ids.contact(), profileId: profile.id, name: "", kind: kind ?? "vendor", uid: "", email: "", phone: "", street: "", zip: "", city: "", country: "AT", iban: "", notes: "", aliases: [], createdAt: nowIso(), updatedAt: nowIso() });
@@ -601,7 +604,7 @@ export function ContactDialog({ open, onClose, contact, kind, onSaved, onDeleted
               <AvatarPicker name={v.name} imageId={v.logoAttachmentId} onChange={(id) => set({ logoAttachmentId: id })} square label="Logo" />
             </div>
             <Field label="Name / Firma" required className="sm:col-span-2" error={show("name")}><Input autoFocus value={v.name} onChange={(e) => set({ name: e.target.value })} placeholder="z. B. Muster GmbH" /></Field>
-            <Field label="Art"><Select value={v.kind} onChange={(e) => set({ kind: e.target.value as Contact["kind"] })}><option value="vendor">Lieferant</option><option value="customer">Kunde</option><option value="both">Beides</option></Select></Field>
+            <Field label="Art"><Select value={v.kind} onChange={(e) => set({ kind: e.target.value as Contact["kind"] })}><option value="vendor">Lieferant</option><option value="customer">Kunde</option><option value="both">Kunde und Lieferant</option></Select></Field>
             <Field label="Nummer" hint={v.number ? undefined : "Wird beim Speichern vergeben."}><Input value={v.number ?? ""} onChange={(e) => set({ number: e.target.value })} placeholder={nextContactNumberFor(vault, v.profileId)} /></Field>
             <Field label="UID-Nummer" error={show("uid")}><Input value={v.uid} onChange={(e) => set({ uid: e.target.value.toUpperCase() })} placeholder="z. B. ATU12345678" /></Field>
             <Field label="Website" error={show("website")}><Input value={v.website ?? ""} onChange={(e) => set({ website: e.target.value })} placeholder="z. B. muster.at" /></Field>
@@ -620,6 +623,11 @@ export function ContactDialog({ open, onClose, contact, kind, onSaved, onDeleted
             <Field label="Land" hint="AT, DE, CH …" error={show("country")}><Input value={v.country} maxLength={2} onChange={(e) => set({ country: e.target.value.toUpperCase() })} /></Field>
             <Field label="E-Mail" className="sm:col-span-2" error={show("email")}><Input type="email" value={v.email} onChange={(e) => set({ email: e.target.value })} placeholder="z. B. office@muster.at" /></Field>
             <Field label="Telefon" error={show("phone")}><Input type="tel" value={v.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="+43 …" /></Field>
+            {mailInstalled ? (
+              <div className="sm:col-span-3">
+                <Switch checked={!!v.newsletter} onChange={(on) => set({ newsletter: on, newsletterConsentAt: on ? nowIso() : undefined })} label="Bekommt den Newsletter" hint={v.newsletter && v.newsletterConsentAt ? `Zugestimmt am ${fmtDate(v.newsletterConsentAt.slice(0, 10))}. Nur anhaken, wenn die Person zugestimmt hat.` : "Nur anhaken, wenn die Person zugestimmt hat (TKG § 174)."} />
+              </div>
+            ) : null}
           </div>
         ) : null}
         {section === "zahlung" ? (

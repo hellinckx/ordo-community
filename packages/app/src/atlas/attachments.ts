@@ -9,8 +9,10 @@
 import { ids, type AtlasChat } from "@ordo/core";
 import type { PickedFile } from "@/platform/types";
 import { PARTS } from "@/operator";
+import { rememberImage } from "./vision";
+import type { Screenshot } from "./screenshot";
 
-export type AttachmentKind = "table" | "text" | "json" | "invoice" | "known" | "other";
+export type AttachmentKind = "table" | "text" | "json" | "invoice" | "screenshot" | "known" | "other";
 
 export interface Attachment {
   id: string;
@@ -172,7 +174,8 @@ export async function addAttachment(file: PickedFile): Promise<Attachment> {
       const text = decodeText(file.bytes);
       Object.assign(base, { kind: "text", text, summary: `Text mit ${text.split(/\r?\n/).length} Zeilen` });
     } else if (INVOICE_EXT.has(e) || file.mime === "application/pdf" || file.mime.startsWith("image/")) {
-      Object.assign(base, { kind: "invoice", summary: e === "pdf" || file.mime === "application/pdf" ? "PDF – z. B. eine Rechnung" : e === "eml" ? "E-Mail" : "Bild – z. B. ein Kassenbon oder eine Rechnung" });
+      const seen = file.mime.startsWith("image/") && (await rememberImage(base.id, file.bytes, file.mime));
+      Object.assign(base, { kind: "invoice", summary: e === "pdf" || file.mime === "application/pdf" ? "PDF – z. B. eine Rechnung" : e === "eml" ? "E-Mail" : seen ? "Bild, Atlas sieht es sich an – z. B. ein Kassenbon oder eine Rechnung" : "Bild – z. B. ein Kassenbon oder eine Rechnung" });
     } else if (e === "xls") {
       Object.assign(base, { summary: "altes Excel-Format (.xls) – bitte als .xlsx oder CSV speichern" });
     }
@@ -181,6 +184,15 @@ export async function addAttachment(file: PickedFile): Promise<Attachment> {
   }
   files.set(base.id, base);
   return base;
+}
+
+/** A picture of the Ordo page the person is on, taken with the camera button in the Atlas window. */
+export async function addScreenshot(shot: Screenshot, page: string): Promise<Attachment> {
+  const f = shot.file;
+  const a: Attachment = { id: `att_${ids.message().slice(-10)}`, name: f.name, mime: f.mime, size: f.bytes.byteLength, bytes: f.bytes, kind: "screenshot", summary: `Bildschirmfoto von Ordo, Seite ${clean(page, 60) || "unbekannt"}` };
+  if (!(await rememberImage(a.id, f.bytes, f.mime, { screen: true, width: shot.width, height: shot.height }))) a.summary += " (zu groß zum Ansehen)";
+  files.set(a.id, a);
+  return a;
 }
 
 /** Turns dropped or pasted files into PickedFile objects. */

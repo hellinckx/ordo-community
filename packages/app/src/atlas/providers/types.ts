@@ -37,6 +37,8 @@ export interface StepInput {
   onText(snapshot: string): void;
   /** Short status, e.g. "Sucht …". */
   onActivity?(text: string): void;
+  /** Readable summary of the model's reasoning so far in this step (where the provider offers one). */
+  onThinking?(snapshot: string): void;
 }
 
 export interface AtlasProvider {
@@ -47,7 +49,8 @@ export interface AtlasProvider {
 export type ProviderErrorKind = "auth" | "permission" | "rate" | "overloaded" | "network" | "bad_request" | "not_found" | "aborted" | "unavailable" | "other";
 
 export class AtlasProviderError extends Error {
-  constructor(message: string, public readonly kind: ProviderErrorKind, public readonly cause?: unknown) {
+  /** `retryAfterMs`: how long the provider asks to wait (from its retry-after header), if it said so. */
+  constructor(message: string, public readonly kind: ProviderErrorKind, public readonly cause?: unknown, public readonly retryAfterMs?: number) {
     super(message);
     this.name = "AtlasProviderError";
   }

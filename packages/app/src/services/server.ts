@@ -197,7 +197,7 @@ export interface UsageMeter {
 
 export function usageMeters(u: ProjectUsage): UsageMeter[] {
   return [
-    { id: "storage", label: "Dateien (Rechnungen, Tresor)", used: Number(u.storage_bytes), limit: SUPABASE_FREE.storageBytes, unit: "bytes", hint: "Gratis: 1 GB für das ganze Projekt." },
+    { id: "storage", label: "Dateien gesamt (Rechnungen, Tresore)", used: Number(u.storage_bytes), limit: SUPABASE_FREE.storageBytes, unit: "bytes", hint: "Gratis: 1 GB für das ganze Projekt." },
     { id: "db", label: "Datenbank", used: Number(u.db_bytes), limit: SUPABASE_FREE.dbBytes, unit: "bytes", hint: "Gratis: 500 MB. Ordo braucht hier sehr wenig – die Daten liegen verschlüsselt bei den Dateien." },
     { id: "egress", label: "Datenverkehr (30 Tage, geschätzt)", used: Number(u.egress_30d), limit: SUPABASE_FREE.egressBytes, unit: "bytes", hint: "Gratis: 5 GB im Monat. Geschätzt aus dem Abgleich – den genauen Wert zeigt Supabase unter Usage." },
     { id: "accounts", label: "Konten", used: Number(u.accounts), limit: Number(u.accounts_max ?? 50) || 50, unit: "count", hint: "Grenze, die du im Admin-Bereich unter Server-Einstellungen änderst." },

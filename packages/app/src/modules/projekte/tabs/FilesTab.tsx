@@ -9,6 +9,7 @@ import { toast } from "@/state/toasts";
 import { cls, fmtBytes, fmtDate } from "@/lib/format";
 import { useMe } from "@/modules/registry";
 import type { DetailContext } from "../ProjectDetail";
+import { FileDropHint } from "@/components/FileDropHint";
 
 function FileIcon({ mime, name }: { mime: string; name: string }) {
   const cl = "h-5 w-5";
@@ -72,6 +73,7 @@ export function FilesTab({ ctx }: { ctx: DetailContext }) {
 
   const onDrop = async (e: DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setOver(false);
     if (!canUpload) return;
     const items = await Promise.all([...e.dataTransfer.files].map(async (f) => ({ name: f.name, mime: f.type, bytes: new Uint8Array(await f.arrayBuffer()) })));
@@ -102,10 +104,12 @@ export function FilesTab({ ctx }: { ctx: DetailContext }) {
 
   return (
     <div
+      data-own-drop="project-files"
       className={cls("space-y-3 rounded-[22px]", over && "ring-2 ring-brand-500 ring-offset-4 ring-offset-(--bg)")}
       onDragOver={(e) => {
         if (!canUpload || !e.dataTransfer.types.includes("Files")) return;
         e.preventDefault();
+        e.stopPropagation();
         setOver(true);
       }}
       onDragLeave={(e) => {
@@ -120,6 +124,7 @@ export function FilesTab({ ctx }: { ctx: DetailContext }) {
           {canUpload ? <Button size="sm" loading={busy} onClick={() => void pick()}><Upload className="h-4 w-4" /> Hochladen</Button> : null}
         </div>
       </div>
+      {canUpload ? <FileDropHint disabled={busy} onChoose={() => void pick()}>{over ? "Loslassen zum Hochladen" : "Projektdateien hierher ziehen oder auswählen"}</FileDropHint> : null}
       {!list.length ? (
         <EmptyState icon={<FolderOpen className="h-8 w-8" />} title="Noch keine Dateien" body="Pläne, Fotos, Verträge und Abnahmen – leg sie hier ab oder zieh sie einfach in diesen Bereich." action={canUpload ? <Button onClick={() => void pick()} loading={busy}><Upload className="h-4 w-4" /> Dateien wählen</Button> : undefined} />
       ) : (

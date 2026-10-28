@@ -94,6 +94,7 @@ const EMPLOYEE_INCOME: Seed[] = [
   { id: "cat_e_in_neben", name: "Nebeneinkünfte", kind: "income", mode: "employee", icon: "briefcase", color: "#15803d", defaultVatRate: 0, keywords: ["nebenjob", "honorar"], sortOrder: 12 },
   { id: "cat_e_in_kapital", name: "Kapitalerträge / Zinsen", kind: "income", mode: "employee", icon: "percent", color: "#15803d", defaultVatRate: 0, keywords: ["zinsen", "dividende"], sortOrder: 13 },
   { id: "cat_e_in_transfer", name: "Familienbeihilfe / Förderungen", kind: "income", mode: "employee", icon: "baby", color: "#15803d", defaultVatRate: 0, keywords: ["familienbeihilfe", "kinderbetreuungsgeld", "förderung"], sortOrder: 14 },
+  { id: "cat_e_in_geschenke", name: "Taschengeld / Geschenke", kind: "income", mode: "employee", icon: "gift", color: "#15803d", defaultVatRate: 0, keywords: ["taschengeld", "geschenk", "geburtstagsgeld", "osterhase", "weihnachtsgeschenk"], sortOrder: 15 },
   { id: "cat_e_in_sonst", name: "Sonstige Einnahmen", kind: "income", mode: "employee", icon: "plus-circle", color: "#65a30d", defaultVatRate: 0, keywords: ["rückerstattung", "steuerausgleich", "gutschrift"], sortOrder: 15 },
 ];
 

@@ -825,6 +825,7 @@ export function invoiceFromOffer(
         unitNetCents: l.unitNetCents,
         vatRate: standard ? toVatRate(l.vatRate) : 0,
         discountPct: lineDiscount,
+        ...(l.productId ? { productId: l.productId } : {}),
       }));
 
   let lines: InvoiceLine[];

@@ -43,14 +43,15 @@ export function AccountPanel() {
         <span className="text-xs text-(--text-muted)">{ent.storageMb} MB Speicher · bis zu {ent.devices} Geräte{ent.priceEur ? ` · ${ent.priceEur.toFixed(2).replace(".", ",")} € / Monat` : " · kostenlos"}</span>
       </div>
       <div>
-        <div className="mb-1 flex justify-between text-xs text-(--text-muted)"><span>Belegt</span><span className="tabular">{usage ? `${fmtBytes(used)} von ${ent.storageMb} MB` : "…"}</span></div>
+        <div className="mb-1 flex justify-between text-xs text-(--text-muted)"><span className="font-medium text-(--text)">Dein Speicher</span><span className="tabular">{usage ? `${fmtBytes(used)} von ${ent.storageMb} MB` : "…"}</span></div>
         <Progress value={Math.min(1, used / limit)} />
+        <p className="mt-1.5 text-xs text-(--text-muted)">Was dein Konto belegt: Rechnungen, Fotos und dein verschlüsselter Tresor. Fotos und Vorschaubilder speichert Ordo verkleinert, gelöschte Dateien verschwinden nach dem Papierkorb (60 Tage). Originale von Rechnungen bleiben – die musst du 7 Jahre aufbewahren.</p>
       </div>
       <div className="flex flex-wrap gap-2">
         {PARTS.PlanUpgrade ? <PARTS.PlanUpgrade /> : null}
         <Button size="sm" variant="ghost" className="text-red-600" onClick={() => setConfirmDelete(true)}><UserX className="h-4 w-4" /> Sync-Konto löschen</Button>
       </div>
-      <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} danger title="Sync-Konto löschen?" body="Dein Konto, der verschlüsselte Tresor und die Belege werden vom Server gelöscht. Die Daten auf diesem Gerät bleiben erhalten. Das lässt sich nicht rückgängig machen." confirmLabel={busy ? "Wird gelöscht …" : "Endgültig löschen"} onConfirm={deleteAccount} />
+      <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} danger title="Sync-Konto löschen?" body="Dein Konto, der verschlüsselte Tresor und die Dateien (Rechnungen, Kassenbons) werden vom Server gelöscht. Die Daten auf diesem Gerät bleiben erhalten. Das lässt sich nicht rückgängig machen." confirmLabel={busy ? "Wird gelöscht …" : "Endgültig löschen"} onConfirm={deleteAccount} />
     </div>
   );
 }

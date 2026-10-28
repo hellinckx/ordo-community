@@ -38,11 +38,11 @@ export async function startDemo(onStatus?: (s: string) => void): Promise<void> {
       }
     }
   }
-  onStatus?.("Beispielbelege werden angehängt …");
+  onStatus?.("Beispielrechnungen werden angehängt …");
   try {
     await attachDemoDocuments(store, s);
   } catch (e) {
-    console.warn("Demo-Belege konnten nicht angehängt werden", e);
+    console.warn("Demo-Rechnungen konnten nicht angehängt werden", e);
   }
   await store.saveNow();
   useSession.getState().adopt(store);

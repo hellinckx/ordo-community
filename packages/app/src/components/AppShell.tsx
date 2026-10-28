@@ -22,6 +22,9 @@ import { PARTS } from "@/operator";
 import { useIntake } from "@/components/Intake";
 import { Sidebar, useNavModel, type NavItem } from "@/components/Sidebar";
 import { AtlasLauncher } from "@/atlas/AtlasLauncher";
+import { AtlasConsentDialog } from "@/atlas/AtlasConsentDialog";
+import { AtlasActivity } from "@/atlas/AtlasActivity";
+import { AppVersion, UpdateBanner } from "@/components/AppUpdates";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const profile = useProfile();
@@ -119,7 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="hidden lg:block"><Sidebar /></div>
       {mobileOpen ? (
         <div className="fixed inset-0 z-40 flex lg:hidden">
-          <div className="animate-fade-in"><Sidebar /></div>
+          <div className="animate-fade-in"><Sidebar solid /></div>
           <div className="flex-1 bg-slate-950/40" onClick={() => setMobileOpen(false)} />
         </div>
       ) : null}
@@ -130,6 +133,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
           <WebsiteLink className="flex items-center gap-2 lg:hidden"><Logo className="h-6 w-6" /><span className="text-[15px] font-semibold">Ordo</span></WebsiteLink>
           <div className="flex min-w-0 flex-1 items-center gap-2 pl-1">
+            <button type="button" onClick={() => void pickAndImport()} className="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-(--text-muted) hover:bg-(--surface-2) hover:text-(--text) focus-visible:focus-ring lg:inline-flex" title="Rechnungsdateien auswählen oder per Drag & Drop ins Fenster ziehen">
+              <Upload className="h-4 w-4 shrink-0" aria-hidden="true" /><span>Rechnungen ins Fenster ziehen oder auswählen</span>
+            </button>
             {activeJobs ? <Badge tone="info" className="animate-fade-in">{activeJobs} {activeJobs === 1 ? "Datei wird" : "Dateien werden"} gelesen …</Badge> : null}
           </div>
           {isMobile ? (
@@ -137,13 +143,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Camera className="h-4 w-4" />
             </Button>
           ) : null}
-          <Button variant="outline" size="sm" className="hidden h-9 rounded-full px-3.5 lg:inline-flex" onClick={() => window.dispatchEvent(new Event("ordo:atlas-open"))} title="Atlas fragen (Strg+J)">
+          <AppVersion />
+          <Button variant="outline" size="sm" className="h-9 rounded-full px-3.5 max-lg:hidden" onClick={() => window.dispatchEvent(new Event("ordo:atlas-open"))} title="Atlas fragen (Strg+J)">
             <Sparkles className="h-4 w-4 text-brand-700 dark:text-brand-400" /> Atlas fragen
           </Button>
           {PARTS.FeedbackButton ? <PARTS.FeedbackButton /> : null}
           <NotificationBell count={unread} />
           <AccountMenu />
         </header>
+        <UpdateBanner />
+        <AtlasActivity />
         {updateRequired ? (
           <div className="flex flex-wrap items-center gap-2 border-b border-amber-300 bg-amber-50 px-4 py-1.5 text-xs text-amber-900 dark:bg-amber-900/30 dark:text-amber-100">
             <Megaphone className="h-3.5 w-3.5" />
@@ -193,6 +202,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TransactionDialog open={quickAdd} onClose={() => setQuickAdd(false)} />
       <Tour />
       <AtlasLauncher />
+      <AtlasConsentDialog />
       <ConfirmDialog open={confirmExitDemo} onClose={() => setConfirmExitDemo(false)} danger title="Demo beenden?" body="Die Beispieldaten werden gelöscht und du richtest Ordo für dich ein." confirmLabel="Demo beenden" onConfirm={exitDemo} />
     </div>
   );
