@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router";
 import { useSession } from "@/state/session";
 import { Toaster, Spinner, Button, ConfirmDialog } from "@/components/ui";
 import { AppShell } from "@/components/AppShell";
+import { UpdateBanner, UpdateStartHeader } from "@/components/AppUpdates";
 import Onboarding from "@/pages/Onboarding";
 import Unlock from "@/pages/Unlock";
 import Settings from "@/pages/Settings";
@@ -256,7 +257,11 @@ export default function App() {
   }
   return (
     <ErrorBoundary>
-      {content}
+      <div className="flex h-dvh flex-col overflow-hidden">
+        {status !== "unlocked" || !vault?.settings.onboardingDone ? <UpdateStartHeader /> : null}
+        <UpdateBanner />
+        <div className="min-h-0 flex-1 overflow-auto">{content}</div>
+      </div>
       <InstallApp />
       <LeaveDialog />
       <Toaster />

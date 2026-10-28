@@ -9,6 +9,15 @@ export function AppVersion() {
   return <Link to="/einstellungen/ueber" title={`Installierte Ordo-Version ${version} · Updates prüfen`} aria-label={`Ordo Version ${version}, Updates und Informationen`} className="shrink-0 rounded-lg px-2 py-1 text-xs tabular text-(--text-muted) hover:bg-(--surface-2) hover:text-(--text) focus-visible:focus-ring">v{version}</Link>;
 }
 
+/** Also reachable before signing in or unlocking the vault. */
+export function UpdateStartHeader() {
+  const state = useUpdates();
+  return <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-(--border) px-4 py-2 text-xs">
+    <span className="tabular text-(--text-muted)">Ordo · Version {state.currentVersion}</span>
+    <Button size="sm" variant="ghost" loading={state.phase === "checking"} disabled={["downloading", "installing", "installed"].includes(state.phase) || !updatesEnabled()} onClick={() => void checkForUpdates()} title={state.error ?? "Beim Start, alle fünf Minuten und beim Zurückkehren wird automatisch geprüft."}><RefreshCw className="h-4 w-4" aria-hidden="true" /> Nach Updates suchen</Button>
+  </header>;
+}
+
 export function UpdateBanner() {
   const state = useUpdates();
   if (!["available", "downloading", "ready", "installing", "installed"].includes(state.phase) && !(state.phase === "error" && state.availableVersion)) return null;

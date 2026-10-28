@@ -1,6 +1,6 @@
 {
   "name": "ordo-community",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "private": true,
   "description": "Ordo Community Edition – Buchhaltung, Projekte und Lager an einem Ort. Lokal, verschlüsselt, für Österreich.",
   "packageManager": "pnpm@11.7.0",

@@ -2,6 +2,8 @@
 
 Ordo ist eine lokale App mit Modulen. Alle Daten liegen in einem verschlüsselten Tresor; Desktop (Tauri) und Web/PWA teilen denselben Code. Summa ist das Buchhaltungsmodul, Atlas der KI-Assistent. Leitfaden für Modul-Arbeit: [`ORDO-BUILD.md`](ORDO-BUILD.md).
 
+Updates verwenden einen gemeinsamen Zustand und einen globalen Hinweis, auch vor Anmeldung und Entsperren. Die Prüfung läuft beim Start, alle fünf Minuten sowie bei Rückkehr in die App und nach Wiederherstellung der Verbindung. Auf dem Handy ist Ordo eine installierbare PWA: `version.json` wird unabhängig vom Service Worker ohne Cache geprüft, der Worker lädt neue Dateien im Hintergrund. „Jetzt aktualisieren“ speichert den Tresor, wartet auf vollständige Dateien und aktiviert die neue Version. Andere offene Tabs werden dabei nicht ungefragt neu geladen. Windows verwendet signierte Installer; macOS bietet den verfügbaren Mac-Download an. Die Community-Desktop-Ausgabe hat bewusst keinen privaten Updatekanal; selbst gehostete PWAs prüfen ihren eigenen Server.
+
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │  packages/app (@ordo/app, React)                                         │

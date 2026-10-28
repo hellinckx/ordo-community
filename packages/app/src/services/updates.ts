@@ -24,8 +24,8 @@ export const useUpdates = create<UpdateState>(() => ({
   notes: "", error: null, downloaded: 0, total: null, lastChecked: null,
 }));
 
-const CHECK_INTERVAL_MS = 60 * 60 * 1000;
-const RESUME_CHECK_MS = 5 * 60 * 1000;
+const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const RESUME_CHECK_MS = 30 * 1000;
 let pending: Update | null = null;
 let downloadedUpdate: Update | null = null;
 let checking: Promise<void> | null = null;
@@ -34,6 +34,8 @@ let refreshWeb: ((reload?: boolean) => Promise<void>) | undefined;
 let macDownload: string | undefined;
 let started = false;
 let refreshing = false;
+let webControllerChanged = false;
+let webReloaded = false;
 export const updatesEnabled = () => !isTauri || (OPERATOR.updates && !import.meta.env.DEV);
 const busy = () => ["downloading", "installing", "installed"].includes(useUpdates.getState().phase);
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -85,14 +87,73 @@ async function checkMac() {
   useUpdates.setState({ availableVersion: version, phase: "available", notes: "Neue Version laden, öffnen und Ordo in den Programme-Ordner ziehen. Deine Daten bleiben erhalten." });
 }
 
+async function checkWebVersion() {
+  const response = await fetch(import.meta.env.BASE_URL + "version.json", { cache: "no-store", signal: AbortSignal.timeout(15_000) });
+  if (!response.ok) throw new Error("Der Update-Server antwortet mit " + response.status + ".");
+  const metadata = await response.json() as { version?: string };
+  if (metadata.version && isNewerVersion(metadata.version, useUpdates.getState().currentVersion)) {
+    useUpdates.setState((s) => ({ availableVersion: !s.availableVersion || isNewerVersion(metadata.version!, s.availableVersion) ? metadata.version! : s.availableVersion, phase: s.phase === "installing" ? s.phase : "available" }));
+  }
+}
+
 async function offerWebUpdate() {
-  useUpdates.setState({ phase: "available", error: null });
+  if (useUpdates.getState().phase !== "installing") useUpdates.setState({ phase: "available", error: null });
   try {
-    const response = await fetch(import.meta.env.BASE_URL + "version.json", { cache: "no-store", signal: AbortSignal.timeout(15_000) });
-    if (!response.ok) return;
-    const metadata = await response.json() as { version?: string };
-    if (metadata.version && isNewerVersion(metadata.version, useUpdates.getState().currentVersion)) useUpdates.setState({ availableVersion: metadata.version });
+    await checkWebVersion();
   } catch { /* A waiting service worker remains usable without version metadata. */ }
+}
+
+async function checkWeb() {
+  // A version check also works before registration or when a browser cannot use service workers.
+  // An available worker still takes precedence over an offline metadata endpoint.
+  const versionCheck = checkWebVersion().then(() => undefined, (error: unknown) => error);
+  try {
+    if (registration) {
+      await registration.update();
+      if (registration.waiting) await offerWebUpdate();
+    }
+  } finally {
+    const error = await versionCheck;
+    if (error && useUpdates.getState().phase !== "available") throw error;
+  }
+}
+
+function reloadWebOnce() {
+  if (webReloaded) return;
+  webReloaded = true;
+  window.location.reload();
+}
+
+function waitForInstalled(worker: ServiceWorker): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      if (worker.state !== "installed" && worker.state !== "activated" && worker.state !== "redundant") return;
+      clearTimeout(timer); worker.removeEventListener("statechange", finish);
+      if (worker.state === "redundant") reject(new Error("Die neue Version konnte nicht vollständig geladen werden. Bitte erneut versuchen."));
+      else resolve();
+    };
+    const timer = setTimeout(() => { worker.removeEventListener("statechange", finish); reject(new Error("Das Update wird noch geladen. Bitte die Verbindung prüfen und erneut versuchen.")); }, 45_000);
+    worker.addEventListener("statechange", finish); finish();
+  });
+}
+
+async function activateWebUpdate() {
+  if (!registration && "serviceWorker" in navigator) registration = await navigator.serviceWorker.getRegistration(import.meta.env.BASE_URL);
+  if (!registration || webControllerChanged) { reloadWebOnce(); return; }
+  await registration.update();
+  if (registration.installing) await waitForInstalled(registration.installing);
+  if (!registration.waiting) {
+    if (!navigator.serviceWorker.controller || webControllerChanged) { reloadWebOnce(); return; }
+    throw new Error("Die neue Version ist noch nicht vollständig bereit. Bitte gleich erneut versuchen.");
+  }
+  // Listen ourselves as well: the browser may classify a quick successive release as an external update.
+  await new Promise<void>((resolve, reject) => {
+    const changed = () => { clearTimeout(timer); navigator.serviceWorker.removeEventListener("controllerchange", changed); webControllerChanged = true; reloadWebOnce(); resolve(); };
+    const timer = setTimeout(() => { navigator.serviceWorker.removeEventListener("controllerchange", changed); reject(new Error("Das Update wurde noch nicht aktiviert. Bitte erneut versuchen.")); }, 30_000);
+    navigator.serviceWorker.addEventListener("controllerchange", changed);
+    if (refreshWeb) void refreshWeb(true).catch((error) => { clearTimeout(timer); navigator.serviceWorker.removeEventListener("controllerchange", changed); reject(error); });
+    else registration!.waiting!.postMessage({ type: "SKIP_WAITING" });
+  });
 }
 
 /** Coalesces checks; keeps an already offered update available after transient errors. */
@@ -106,12 +167,7 @@ export function checkForUpdates(): Promise<void> {
       if (isTauri) {
         await loadCurrentVersion();
         await (isMac() ? checkMac() : checkDesktop());
-      } else if (registration) {
-        await registration.update();
-        if (registration.waiting) await offerWebUpdate();
-      } else if (useUpdates.getState().phase !== "available") {
-        throw new Error("Die Update-Prüfung ist in diesem Browser noch nicht bereit. Bitte später erneut versuchen.");
-      }
+      } else await checkWeb();
       useUpdates.setState((s) => ({ lastChecked: Date.now(), phase: s.phase === "checking" ? "idle" : s.phase }));
     } catch (error) {
       useUpdates.setState((s) => ({ phase: pending || s.phase === "available" ? "available" : "error", error: message(error) }));
@@ -147,12 +203,12 @@ export async function installAvailableUpdate(): Promise<void> {
   if (busy() && state.phase !== "installed") return;
   if (state.phase === "installed") { guardLeave(() => void restart()); return; }
   if (state.mode === "web") {
-    if (!refreshWeb || refreshing) return;
+    if (refreshing) return;
     guardLeave(() => {
       refreshing = true;
       useUpdates.setState({ phase: "installing", error: null });
       void (async () => {
-        try { await useSession.getState().store?.flush(); await refreshWeb!(true); }
+        try { await useSession.getState().store?.flush(); await activateWebUpdate(); }
         catch (error) { useUpdates.setState({ phase: "available", error: message(error) }); }
         finally { refreshing = false; }
       })();
@@ -185,12 +241,14 @@ function startWeb() {
   void import("virtual:pwa-register").then(({ registerSW }) => {
     refreshWeb = registerSW({ immediate: true, onNeedRefresh: () => void offerWebUpdate(),
       onRegisteredSW(_url, reg) { registration = reg; },
+      // Updating one tab must not reload another tab with an unfinished form or import.
+      onNeedReload() { webControllerChanged = true; if (refreshing) reloadWebOnce(); else void offerWebUpdate(); },
       onRegisterError(error) { useUpdates.setState({ error: message(error) }); },
     });
   }).catch((error) => useUpdates.setState({ error: message(error) }));
 }
 
-/** Checks on startup, hourly, and on returning online/to the app. Idempotent with explicit cleanup. */
+/** Checks on startup, every five minutes, and on returning online/to the app. */
 export function startUpdateChecks(): () => void {
   if (started) return () => {};
   started = true;
@@ -206,10 +264,12 @@ export function startUpdateChecks(): () => void {
   const initial = setTimeout(run, 5000);
   const interval = setInterval(run, CHECK_INTERVAL_MS);
   window.addEventListener("online", run); window.addEventListener("focus", resume);
+  window.addEventListener("pageshow", resume);
   document.addEventListener("visibilitychange", resume);
   return () => {
     clearTimeout(initial); clearInterval(interval);
     window.removeEventListener("online", run); window.removeEventListener("focus", resume);
+    window.removeEventListener("pageshow", resume);
     document.removeEventListener("visibilitychange", resume); started = false;
   };
 }

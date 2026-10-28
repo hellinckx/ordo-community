@@ -24,7 +24,8 @@ import { Sidebar, useNavModel, type NavItem } from "@/components/Sidebar";
 import { AtlasLauncher } from "@/atlas/AtlasLauncher";
 import { AtlasConsentDialog } from "@/atlas/AtlasConsentDialog";
 import { AtlasActivity } from "@/atlas/AtlasActivity";
-import { AppVersion, UpdateBanner } from "@/components/AppUpdates";
+import { AppVersion } from "@/components/AppUpdates";
+import { checkForUpdates } from "@/services/updates";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const profile = useProfile();
@@ -118,7 +119,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pickAndImport = (capture = false) => intake.upload(capture);
 
   return (
-    <div className="flex h-dvh overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       <div className="hidden lg:block"><Sidebar /></div>
       {mobileOpen ? (
         <div className="fixed inset-0 z-40 flex lg:hidden">
@@ -151,13 +152,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NotificationBell count={unread} />
           <AccountMenu />
         </header>
-        <UpdateBanner />
         <AtlasActivity />
         {updateRequired ? (
           <div className="flex flex-wrap items-center gap-2 border-b border-amber-300 bg-amber-50 px-4 py-1.5 text-xs text-amber-900 dark:bg-amber-900/30 dark:text-amber-100">
             <Megaphone className="h-3.5 w-3.5" />
             <span className="font-semibold">Update nötig</span>
-            <span className="flex-1">Diese Ordo-Version ist zu alt für den Sync-Server. Bitte aktualisieren (Desktop: Update-Hinweis beim Start · Web: Seite neu laden).</span>
+            <span className="flex-1">Diese Ordo-Version ist zu alt für den Sync-Server. Prüfe das Update und aktualisiere über den Hinweis oben.</span>
+            <Button size="sm" variant="outline" onClick={() => void checkForUpdates()}>Nach Updates suchen</Button>
           </div>
         ) : null}
         {visibleAnnouncements.map((a) => (
