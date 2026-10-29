@@ -14,7 +14,7 @@
   <a href="../../releases">Community-Releases</a> ·
   <a href="SELFHOST.md">Eigene Datenbank</a> ·
   <a href="docs/API.md">Schnittstellen</a> ·
-  <a href="https://ordo-business.netlify.app">Website</a>
+  <a href="https://ordo-app.at">Website</a>
 </p>
 
 <p align="center">
@@ -122,7 +122,7 @@ Ordo ist ein Werkzeug zur Vorbereitung – keine Steuerberatung und kein Ersatz 
 
 ## Lizenz
 
-Copyright © 2026 Hellinckx Process Simulation e.U. – <https://ordo-business.netlify.app>
+Copyright © 2026 Hellinckx Process Simulation e.U. – <https://ordo-app.at>
 
 Dieses Programm ist freie Software: Du kannst es unter den Bedingungen der **GNU Affero General Public License, Version 3**, weitergeben und verändern ([LICENSE](LICENSE)). Wer eine veränderte Fassung anderen über ein Netzwerk zur Verfügung stellt, muss ihnen auch den geänderten Quellcode zugänglich machen.
 

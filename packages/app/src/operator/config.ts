@@ -9,7 +9,7 @@ export const OPERATOR: OperatorConfig = {
   edition: "community",
   server: null,
   webUrl: "",
-  website: "https://ordo-business.netlify.app/",
+  website: "https://ordo-app.at/",
   legalPages: [],
   provider: null,
   updates: false,

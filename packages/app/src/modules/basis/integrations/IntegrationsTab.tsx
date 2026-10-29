@@ -133,7 +133,7 @@ function LocalApiCard() {
           <details className="rounded-xl bg-(--surface-2) p-3 text-xs">
             <summary className="cursor-pointer font-medium">Beispiel für Programmierer</summary>
             <pre className="mt-2 overflow-x-auto whitespace-pre-wrap">{`curl ${base}/v1/status -H "Authorization: Bearer <API-Schlüssel>"\n\ncurl ${base}/v1/transactions -H "Authorization: Bearer <API-Schlüssel>" \\\n  -H "Content-Type: application/json" \\\n  -d '{"kind":"expense","date":"2026-10-22","amount":119.90,"vatRate":20,"description":"Druckerpapier","contactName":"Muster GmbH","externalId":"ER-4711"}'`}</pre>
-            <p className="mt-2">Alle Pfade (Kontakte, Buchungen, Rechnungen, E-Rechnung, Lager, Zeiten, BMD-Export): ordo-business.netlify.app/schnittstellen/</p>
+            <p className="mt-2">Alle Pfade (Kontakte, Buchungen, Rechnungen, E-Rechnung, Lager, Zeiten, BMD-Export): ordo-app.at/schnittstellen/</p>
           </details>
         </div>
       ) : (
