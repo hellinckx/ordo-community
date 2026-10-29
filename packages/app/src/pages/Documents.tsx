@@ -127,7 +127,7 @@ export default function Documents() {
       ) : null}
       <PageHeader
         title={dir === "ausgang" ? "Ausgehende Rechnungen prüfen" : isBusiness ? "Eingehende Rechnungen" : "Rechnungen & Bons"}
-        subtitle={dir === "ausgang" ? "Rechnungen, die du deinen Kunden gestellt hast. Sie zählen als Einnahme und bleiben offen, bis das Geld am Konto ist." : <>Alles, was du bezahlt hast: Rechnungen, Kassenbons, Quittungen. Eindeutiges bucht Summa selbst{autoCount ? ` (bisher ${autoCount})` : ""}, der Rest wartet hier auf einen kurzen Blick.</>}
+        subtitle={dir === "ausgang" ? "Rechnungen, die du deinen Kunden gestellt hast. Sie zählen als Einnahme und bleiben offen, bis das Geld am Konto ist." : <>Alles, was du bezahlt hast: Rechnungen, Kassenbons, Quittungen. Eindeutiges bucht Ordo selbst{autoCount ? ` (bisher ${autoCount})` : ""}, der Rest wartet hier auf einen kurzen Blick.</>}
         actions={
           <>
             {isMobile ? <Button onClick={() => void pick(true)}><Camera className="h-4 w-4" /> Fotografieren</Button> : null}
@@ -173,7 +173,7 @@ export default function Documents() {
         <EmptyState
           icon={<FileStack className="h-10 w-10" />}
           title={dir === "ausgang" ? "Noch keine ausgehenden Rechnungen" : "Noch keine Rechnungen"}
-          body={dir === "ausgang" ? <>Lade Rechnungen hoch, die du mit einem anderen Programm erstellt hast – oder verbinde unter Einstellungen → Ordner deinen Ordner dafür.</> : <>Zieh PDFs, Fotos von Kassenbons oder Scans einfach hier hinein. Noch bequemer: unter Einstellungen → Ordner einen Ordner verbinden, Summa holt neue Dateien dann selbst. Tastenkürzel: <Kbd>U</Kbd></>}
+          body={dir === "ausgang" ? <>Lade Rechnungen hoch, die du mit einem anderen Programm erstellt hast – oder verbinde unter Einstellungen → Ordner deinen Ordner dafür.</> : <>Zieh PDFs, Fotos von Kassenbons oder Scans einfach hier hinein. Noch bequemer: unter Einstellungen → Ordner einen Ordner verbinden, Ordo holt neue Dateien dann selbst. Tastenkürzel: <Kbd>U</Kbd></>}
           action={<div className="flex flex-wrap justify-center gap-2"><Button onClick={() => void pick(false)}><Upload className="h-4 w-4" /> Dateien auswählen</Button><FolderLinkButton kind={dir === "ausgang" ? "outgoing" : "receipts"} /></div>}
         />
       ) : (
@@ -476,7 +476,7 @@ function RereadDialog({ open, onClose, scopes }: { open: boolean; onClose: () =>
   const model = ai.anthropicModel.trim() || CLAUDE_AUTO_MODEL;
   const est = estimateReadCostCents(docs.length, model);
   const options: { id: RereadScope; label: string; hint?: string }[] = [
-    { id: "review", label: `Zu prüfen (${scopes.review.length})`, hint: "Empfohlen. Was danach sicher gelesen ist, bucht Summa wie beim Hochladen selbst." },
+    { id: "review", label: `Zu prüfen (${scopes.review.length})`, hint: "Empfohlen. Was danach sicher gelesen ist, bucht Ordo wie beim Hochladen selbst." },
     { id: "open", label: `Alle nicht gebuchten (${scopes.open.length})`, hint: "Auch Rechnungen, die bisher nicht lesbar waren." },
     { id: "all", label: `Auch gebuchte (${scopes.all.length})`, hint: "Gebuchtes bleibt gebucht. Liest die KI einen anderen Betrag oder ein anderes Datum, kommt die Rechnung zurück in die Prüfung." },
   ];

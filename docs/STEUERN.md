@@ -4,7 +4,7 @@ Stand: Oktober 2026. Quellen: Formulare des Bundesministeriums für Finanzen (bm
 
 ## Umsatzsteuervoranmeldung – U 30 (2026, Version 20.08.2025)
 
-| KZ | Inhalt | Summa-Quelle |
+| KZ | Inhalt | Ordo-Quelle |
 | --- | --- | --- |
 | 000 | Gesamtbetrag Bemessungsgrundlage Lieferungen/Leistungen (netto) | Einnahmen außer Reverse-Charge-Auslandsleistungen |
 | 001 | Eigenverbrauch | manuell |

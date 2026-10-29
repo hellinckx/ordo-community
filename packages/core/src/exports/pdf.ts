@@ -53,7 +53,7 @@ function footer(doc: JsPdf) {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(120);
-    doc.text(`Erstellt mit Summa am ${new Date().toLocaleDateString("de-AT")} · Seite ${i}/${pages}`, 14, 290);
+    doc.text(`Erstellt mit Ordo am ${new Date().toLocaleDateString("de-AT")} · Seite ${i}/${pages}`, 14, 290);
     doc.setTextColor(0);
   }
 }

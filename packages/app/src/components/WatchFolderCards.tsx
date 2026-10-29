@@ -51,16 +51,16 @@ export function WatchFolderCards({ compact }: { compact?: boolean }) {
 
   return (
     <div className={compact ? "grid gap-3" : "grid gap-4 lg:grid-cols-2"}>
-      <FolderList kind="receipts" title={isBusiness ? "Eingehende Rechnungen" : "Rechnungen & Bons"} body={isBusiness ? "Rechnungen und Kassenbons, die du bezahlst. Alles, was hier landet (PDF, Foto, Scan, Excel), liest Summa ein und bucht es, wenn es eindeutig ist. Gut geeignet: Scanner-Ordner oder ein OneDrive-/Dropbox-Ordner, in den du vom Handy fotografierst." : "Alle Rechnungen und Bons, die du sammelst – Summa liest sie ein und ordnet sie zu. Ein Überordner reicht, auch wenn du nach Jahren oder Themen sortierst."} />
-      {isBusiness ? <FolderList kind="outgoing" title="Ausgehende Rechnungen" body="Deine Rechnungen an Kunden, wenn du sie mit einem anderen Programm schreibst. Summa bucht sie als Einnahme, bis das Geld eingegangen ist." /> : null}
-      <FolderList kind="bank" title="Kontoauszüge" body="Kontoauszüge (PDF, CSV oder CAMT) liest Summa ein und vergleicht sie mit deinen Buchungen." />
+      <FolderList kind="receipts" title={isBusiness ? "Eingehende Rechnungen" : "Rechnungen & Bons"} body={isBusiness ? "Rechnungen und Kassenbons, die du bezahlst. Alles, was hier landet (PDF, Foto, Scan, Excel), liest Ordo ein und bucht es, wenn es eindeutig ist. Gut geeignet: Scanner-Ordner oder ein OneDrive-/Dropbox-Ordner, in den du vom Handy fotografierst." : "Alle Rechnungen und Bons, die du sammelst – Ordo liest sie ein und ordnet sie zu. Ein Überordner reicht, auch wenn du nach Jahren oder Themen sortierst."} />
+      {isBusiness ? <FolderList kind="outgoing" title="Ausgehende Rechnungen" body="Deine Rechnungen an Kunden, wenn du sie mit einem anderen Programm schreibst. Ordo bucht sie als Einnahme, bis das Geld eingegangen ist." /> : null}
+      <FolderList kind="bank" title="Kontoauszüge" body="Kontoauszüge (PDF, CSV oder CAMT) liest Ordo ein und vergleicht sie mit deinen Buchungen." />
       {!compact ? (
         <Card title="Gut zu wissen" className="lg:col-span-2">
           <ul className="list-disc space-y-1 pl-5 text-sm text-(--text-muted)">
             <li><strong>Überordner reicht:</strong> Unterordner – z. B. „2025“, „2026“ oder „Versicherung“ – werden mitgelesen („Unterordner“ an). Versteckte Ordner und „Verarbeitet“ werden übersprungen.</li>
             <li>Mehrere Ordner je Zweck sind möglich, etwa Scanner-Ordner plus Downloads.</li>
             <li>Gelesen werden PDF, JPG/PNG/HEIC/WebP, TIFF, Excel/CSV und E-Mail-Dateien (.eml).</li>
-            <li>Bereits importierte Dateien werden anhand ihres Inhalts erkannt und nie doppelt verarbeitet. Die Originaldatei bleibt im Ordner; Summa speichert eine verschlüsselte Kopie im Tresor.</li>
+            <li>Bereits importierte Dateien werden anhand ihres Inhalts erkannt und nie doppelt verarbeitet. Die Originaldatei bleibt im Ordner; Ordo speichert eine verschlüsselte Kopie im Tresor.</li>
           </ul>
         </Card>
       ) : null}

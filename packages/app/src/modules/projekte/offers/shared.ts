@@ -29,7 +29,7 @@ export function useOfferRights() {
     canRead: can(role, "offers", "read"),
     canWrite: can(role, "offers", "write"),
     canDelete: can(role, "offers", "admin"),
-    /** Summa installed and allowed to write invoices. */
+    /** Ordo installed and allowed to write invoices. */
     canInvoice: summa && can(role, "summa", "write"),
     canSeeInvoices: summa && can(role, "summa", "read"),
     summaInstalled: summa,
@@ -37,7 +37,7 @@ export function useOfferRights() {
 }
 
 /**
- * Stores a Summa invoice draft like Summa's own editor does: insert, bump the invoice counter on the profile,
+ * Stores a Ordo invoice draft like Ordo's own editor does: insert, bump the invoice counter on the profile,
  * remember the invoice on the offer. Returns the new invoice id.
  */
 export function saveInvoiceDraft(draft: InvoiceDraft, profileId: string, offerId?: string): string {

@@ -94,7 +94,7 @@ export function OfferInvoiceDialog({ offer, onClose }: { offer: Offer; onClose: 
       earlierInvoices: earlier,
     });
     const id = saveInvoiceDraft(draft, profile.id, offer.id);
-    toast.success(`Rechnung ${draft.invoice.number} angelegt`, "Prüfen, fertigstellen und senden – in Summa.");
+    toast.success(`Rechnung ${draft.invoice.number} angelegt`, "Prüfen, fertigstellen und senden – in Ordo.");
     onClose();
     navigate(`/rechnungen/${id}`);
   };
@@ -139,7 +139,7 @@ export function OfferInvoiceDialog({ offer, onClose }: { offer: Offer; onClose: 
         {kind === "full" && earlier.length ? <Notice tone="warning">Zu diesem Angebot gibt es schon {earlier.length === 1 ? "eine Rechnung" : `${earlier.length} Rechnungen`}. Meinst du die Schlussrechnung?</Notice> : null}
         {overOffer ? <Notice tone="warning">Das ist mehr, als aus diesem Angebot noch offen ist ({fmtMoney(Math.max(0, restNet))} netto).</Notice> : null}
         {overBudget && billing ? <Notice tone="warning">Damit wird das Projektbudget überschritten – offen sind noch {fmtMoney(Math.max(0, billing.remainingCents))} netto.</Notice> : null}
-        <p className="text-xs text-(--text-muted)">Die Rechnung wird als Entwurf in Summa angelegt. Dort prüfst du sie, stellst sie fertig und sendest sie.</p>
+        <p className="text-xs text-(--text-muted)">Die Rechnung wird als Entwurf in Ordo angelegt. Dort prüfst du sie, stellst sie fertig und sendest sie.</p>
       </div>
     </Modal>
   );
@@ -200,7 +200,7 @@ export function ProjectInvoiceDialog({ project, onClose }: { project: Project; o
       offer,
     });
     const id = saveInvoiceDraft(draft, profile.id, offer?.id);
-    toast.success(`Rechnung ${draft.invoice.number} angelegt`, "Prüfen, fertigstellen und senden – in Summa.");
+    toast.success(`Rechnung ${draft.invoice.number} angelegt`, "Prüfen, fertigstellen und senden – in Ordo.");
     onClose();
     navigate(`/rechnungen/${id}`);
   };
@@ -273,7 +273,7 @@ export function ProjectInvoiceDialog({ project, onClose }: { project: Project; o
           <p className="text-xs text-(--text-muted)">Wird dem angenommenen Angebot {offer.number} zugeordnet.</p>
         ) : null}
         {over ? <Notice tone="warning">Das sind {fmtMoney((amount ?? 0) - billing.remainingCents)} mehr als das offene Budget ({fmtMoney(Math.max(0, billing.remainingCents))}). Du kannst trotzdem weitermachen.</Notice> : null}
-        <p className="text-xs text-(--text-muted)">Die Rechnung wird als Entwurf in Summa angelegt. Dort prüfst du sie, stellst sie fertig und sendest sie.</p>
+        <p className="text-xs text-(--text-muted)">Die Rechnung wird als Entwurf in Ordo angelegt. Dort prüfst du sie, stellst sie fertig und sendest sie.</p>
       </div>
     </Modal>
   );

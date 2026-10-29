@@ -2,7 +2,7 @@ import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, BarChart3, FilePlus2,
 import { documentDirection } from "@ordo/core";
 import Checkup from "@/pages/Checkup";
 import { allCheckTool } from "./checkTool";
-import { SummaMark } from "@/components/Logo";
+import { Logo } from "@/components/Logo";
 import Documents from "@/pages/Documents";
 import Transactions from "@/pages/Transactions";
 import Invoices from "@/pages/Invoices";
@@ -14,15 +14,16 @@ import type { OrdoModule } from "../types";
 
 export const summaModule: OrdoModule = {
   id: "summa",
-  name: "Summa",
+  name: "Ordo",
   title: "Buchhaltung",
-  tagline: "Rechnungen rein, Steuern raus – Summa bucht von selbst.",
+  tagline: "Rechnungen rein, Steuern raus – Ordo bucht von selbst.",
   description:
-    "Summa liest eingehende Rechnungen und Kassenbons aus deinen Ordnern, bucht Eindeutiges von allein und rechnet laufend Umsatzsteuer-Voranmeldung, Gewinn (E1a) oder Arbeitnehmerveranlagung mit. Dazu Kontoauszüge, Analysen und Rechnungen an Kunden.",
+    "Ordo liest eingehende Rechnungen und Kassenbons aus deinen Ordnern, bucht Eindeutiges von allein und rechnet laufend Umsatzsteuer-Voranmeldung, Gewinn (E1a) oder Arbeitnehmerveranlagung mit. Dazu Kontoauszüge, Analysen und Rechnungen an Kunden.",
   features: ["Eingehende und ausgehende Rechnungen", "Automatisches Buchen mit KI", "UVA, E1a, L1 fertig für FinanzOnline", "Kontoauszüge abgleichen", "Anlagen & Abschreibung"],
-  icon: SummaMark,
-  tint: "#0f9d8a",
+  icon: Logo,
+  tint: "#0a5fe0",
   defaultInstalled: true,
+  required: true,
   mobile: true,
   nav: [
     { to: "/belege", label: "Eingehende Rechnungen", labelFor: { employee: "Rechnungen & Bons" }, short: "Eingang", icon: ArrowDownToLine, mobileRank: 1 },
@@ -64,5 +65,5 @@ export const summaModule: OrdoModule = {
   },
   atlasTools: [allCheckTool],
   atlasContext:
-    "Summa (Buchhaltung): transactions = Einnahmen/Ausgaben (grossCents, vatLines, categoryId, date), documents = eingelesene Rechnungen/Bons, invoices = Rechnungen an Kunden, categories, bankLines = Kontoauszugszeilen, assets = Anlagen.",
+    "Ordo (Buchhaltung): transactions = Einnahmen/Ausgaben (grossCents, vatLines, categoryId, date), documents = eingelesene Rechnungen/Bons, invoices = Rechnungen an Kunden, categories, bankLines = Kontoauszugszeilen, assets = Anlagen.",
 };

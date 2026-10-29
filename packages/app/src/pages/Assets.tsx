@@ -44,7 +44,7 @@ export default function Assets() {
       {unlinked.length ? <p className="text-sm text-amber-700 dark:text-amber-300">{unlinked.length} Anlagen ohne Anschaffungs- oder Eröffnungsbuchung: Für vollständige Bilanzwerte bitte die ursprüngliche Buchung verknüpfen oder die Altanlage mit Eröffnungsdatum übernehmen.</p> : null}
       {incomplete.length ? <p className="text-sm text-(--text-muted)">Bei {incomplete.length} Anlagen fehlen Lieferant oder Lieferantenanschrift. Diese Angaben bitte in der Anlage ergänzen.</p> : null}
       {!assets.length ? (
-        <EmptyState icon={<Package className="h-8 w-8" />} title="Keine Anlagen" body="Käufe über 1.000 € netto (Laptop, Maschinen, Fahrzeuge) werden über die Nutzungsdauer abgeschrieben. Buche sie mit der Kategorie „Anlagenkauf“ – Summa legt die Anlage automatisch an." action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Manuell anlegen</Button>} />
+        <EmptyState icon={<Package className="h-8 w-8" />} title="Keine Anlagen" body="Käufe über 1.000 € netto (Laptop, Maschinen, Fahrzeuge) werden über die Nutzungsdauer abgeschrieben. Buche sie mit der Kategorie „Anlagenkauf“ – Ordo legt die Anlage automatisch an." action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Manuell anlegen</Button>} />
       ) : (
         <div className="surface overflow-x-auto">
           <table className="w-full text-sm">

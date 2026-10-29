@@ -12,7 +12,7 @@ export interface SheetSpec {
 export async function buildXlsx(sheets: SheetSpec[], meta: { creator?: string; title?: string } = {}): Promise<Uint8Array> {
   const ExcelJS = (await import("exceljs")).default ?? (await import("exceljs"));
   const wb = new ExcelJS.Workbook();
-  wb.creator = meta.creator ?? "Summa";
+  wb.creator = meta.creator ?? "Ordo";
   wb.created = new Date();
   if (meta.title) wb.title = meta.title;
   for (const spec of sheets) {

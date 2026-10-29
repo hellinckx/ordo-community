@@ -39,7 +39,7 @@ export function computeNotifications(input: NotificationInput): SummaNotificatio
           profileId: input.profile.id,
           kind: "uva_deadline",
           title: days < 0 ? `UVA ${p.label} überfällig` : days === 0 ? `UVA ${p.label} heute fällig` : `UVA ${p.label} in ${days} Tagen fällig`,
-          body: `Frist: ${p.dueDate.split("-").reverse().join(".")} – Kennzahlen in Summa prüfen und in FinanzOnline übertragen.`,
+          body: `Frist: ${p.dueDate.split("-").reverse().join(".")} – Kennzahlen in Ordo prüfen und in FinanzOnline übertragen.`,
           dueDate: p.dueDate,
           link: `/steuern/uva?year=${p.ref.year}&index=${p.ref.index}`,
           dedupeKey: `uva:${p.ref.year}-${p.ref.kind}-${p.ref.index}`,
@@ -51,7 +51,7 @@ export function computeNotifications(input: NotificationInput): SummaNotificatio
   if (prefs.inboxReminder) {
     const review = input.documents.filter((d) => !d.deletedAt && d.profileId === input.profile.id && (d.status === "review" || d.status === "inbox")).length;
     if (review >= 5) {
-      push({ profileId: input.profile.id, kind: "inbox", title: `${review} ${review === 1 ? "Rechnung wartet" : "Rechnungen warten"} auf einen Blick`, body: "Summa war sich bei ein paar Angaben nicht sicher – kurz prüfen, dann ist alles gebucht.", link: "/belege", dedupeKey: `inbox:${today.slice(0, 7)}:${Math.floor(review / 5)}` });
+      push({ profileId: input.profile.id, kind: "inbox", title: `${review} ${review === 1 ? "Rechnung wartet" : "Rechnungen warten"} auf einen Blick`, body: "Ordo war sich bei ein paar Angaben nicht sicher – kurz prüfen, dann ist alles gebucht.", link: "/belege", dedupeKey: `inbox:${today.slice(0, 7)}:${Math.floor(review / 5)}` });
     }
   }
 

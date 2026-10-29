@@ -1,4 +1,4 @@
-/* Stock ↔ bookkeeping (Ordo Lager × Summa): invoices move goods out, incoming invoices bring them in. Pure functions. */
+/* Stock ↔ bookkeeping (Ordo Lager × Ordo): invoices move goods out, incoming invoices bring them in. Pure functions. */
 import type { Category, ExtractedLineItem, Invoice, Transaction } from "../model/types";
 import type { Product, StockMove } from "./schemas";
 import { isStockTracked, roundQty, type StockMoveDraft } from "./stock";

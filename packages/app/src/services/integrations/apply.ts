@@ -135,7 +135,7 @@ export function createTransaction(store: VaultStore, profileId: string, raw: unk
   return { transaction, created: true };
 }
 
-/** A draft invoice in Summa – numbered like one written by hand; sending it stays a person's decision. */
+/** A draft invoice in Ordo – numbered like one written by hand; sending it stays a person's decision. */
 export function createInvoiceDraft(store: VaultStore, profileId: string, raw: unknown, source: string): { invoice: Invoice; created: boolean } {
   const input: ApiInvoiceInput = parse(ApiInvoiceInputSchema, raw);
   const ref = input.externalId ? `${source}:${input.externalId}` : undefined;

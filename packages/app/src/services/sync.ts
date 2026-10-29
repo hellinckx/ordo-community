@@ -1,5 +1,5 @@
 /**
- * Optional sync via Supabase (preconfigured Summa server or a self-hosted project). Only sealed vault bytes
+ * Optional sync via Supabase (preconfigured Ordo server or a self-hosted project). Only sealed vault bytes
  * and encrypted attachment blobs are uploaded and the server never gets the password. So that a forgotten
  * password can be reset by e-mail code, the vault key itself is kept in Supabase Vault for the signed-in
  * account (see ensureKeyEscrow) – the operator could therefore decrypt; the privacy policy says so.

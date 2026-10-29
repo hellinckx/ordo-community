@@ -1,5 +1,5 @@
 /* Offer logic (Ordo Projekte → Angebote): totals with discount, numbering, PDF texts, Excel paste import,
-   offer → Summa invoice drafts and project invoice suggestions. Pure functions – no store, no React. */
+   offer → Ordo invoice drafts and project invoice suggestions. Pure functions – no store, no React. */
 import type { Contact, Invoice, InvoiceLine, Profile, VatTreatment } from "../model/types";
 import type { Offer, OfferLine, Product, Project, ProjectSettings } from "./schemas";
 import type { VatRate } from "../model/vat";
@@ -157,7 +157,7 @@ export function allocateOfferNumber(settings: Pick<ProjectSettings, "offerNumber
   return allocate(settings.offerNumberPattern || "AN-{YYYY}-{NNNN}", settings.nextOfferNumber, date, used);
 }
 
-/** Next free Summa invoice number from the profile; `next` goes back into company.nextInvoiceNumber. */
+/** Next free Ordo invoice number from the profile; `next` goes back into company.nextInvoiceNumber. */
 export function allocateInvoiceNumber(company: Pick<Profile["company"], "invoiceNumberPattern" | "nextInvoiceNumber">, date: string, used: Iterable<string> = []): { number: string; next: number } {
   return allocate(company.invoiceNumberPattern || "RE-{YYYY}-{NNNN}", company.nextInvoiceNumber, date, used);
 }
@@ -675,10 +675,10 @@ export function offerLinesFromPaste(rows: OfferPasteRow[], defaults: { unit?: st
 }
 
 /* ================================================================== */
-/* Invoices: offer → Summa invoice draft, project invoices, budget      */
+/* Invoices: offer → Ordo invoice draft, project invoices, budget      */
 /* ================================================================== */
 
-/** Net per VAT rate of a Summa invoice (line discount, then invoice discount); credit notes negative. */
+/** Net per VAT rate of a Ordo invoice (line discount, then invoice discount); credit notes negative. */
 function invoiceNetByRate(inv: Invoice): Map<number, number> {
   const out = new Map<number, number>();
   const taxable = inv.vatTreatment === "standard";
@@ -695,7 +695,7 @@ function invoiceNetByRate(inv: Invoice): Map<number, number> {
   return out;
 }
 
-/** Net of a Summa invoice as it counts against a budget (credit notes negative). */
+/** Net of a Ordo invoice as it counts against a budget (credit notes negative). */
 export function invoiceBudgetNetCents(inv: Invoice): number {
   let s = 0;
   for (const v of invoiceNetByRate(inv).values()) s += v;
@@ -725,7 +725,7 @@ export interface InvoiceDraftOptions {
   servicePeriodEnd?: string;
   /**
    * Where the offer discount goes. "lines" (default) puts it on every copied line (InvoiceLine.discountPct), which
-   * Summa's totals, PDF and booking already understand. "invoice" sets Invoice.discountPct instead.
+   * Ordo's totals, PDF and booking already understand. "invoice" sets Invoice.discountPct instead.
    */
   discountMode?: "lines" | "invoice";
   newId?: (kind: "invoice" | "line") => string;
@@ -791,7 +791,7 @@ function amountLines(amountNet: number, byRate: { rate: number; netCents: number
 }
 
 /**
- * Summa invoice draft from an offer.
+ * Ordo invoice draft from an offer.
  * - full: every non-optional position ("Titel\nBeschreibung"), with the offer discount
  * - downpayment: one line per VAT rate over offer net × down-payment %
  * - final: every position, minus the earlier invoices of this offer (and unlinked invoices of its project)
@@ -881,7 +881,7 @@ export function invoiceFromOffer(
 
 export type ProjectInvoiceKind = "downpayment" | "final" | "partial";
 
-/** Summa invoice draft over a net amount for a project (one line), e.g. down payment or final invoice. */
+/** Ordo invoice draft over a net amount for a project (one line), e.g. down payment or final invoice. */
 export function projectInvoiceDraft(
   project: Pick<Project, "id" | "name" | "number" | "customerId" | "startDate" | "endDate">,
   o: InvoiceDraftOptions & { amountNetCents: number; kind?: ProjectInvoiceKind; description?: string; vatRate?: VatRate; downpaymentPct?: number; offer?: Offer },

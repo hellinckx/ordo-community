@@ -120,7 +120,7 @@ function ContactList() {
     <div className="space-y-4">
       <PageHeader
         title="Kontakte"
-        subtitle={summa ? "Kunden und Lieferanten an einem Ort. Summa legt sie beim Lesen deiner Rechnungen auch selbst an." : "Deine Kunden und Lieferanten an einem Ort – mit Ansprechpartnern, Projekten und Dateien."}
+        subtitle={summa ? "Kunden und Lieferanten an einem Ort. Ordo legt sie beim Lesen deiner Rechnungen auch selbst an." : "Deine Kunden und Lieferanten an einem Ort – mit Ansprechpartnern, Projekten und Dateien."}
         actions={canWrite ? <Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Kontakt</Button> : null}
       />
       <div className="flex flex-wrap items-center gap-2">
@@ -140,7 +140,7 @@ function ContactList() {
           <EmptyState
             icon={<Users className="h-8 w-8" />}
             title="Noch keine Kontakte"
-            body={summa ? "Kontakte entstehen von selbst, sobald Summa deine Rechnungen liest – oder du legst sie hier an." : "Leg deinen ersten Kunden oder Lieferanten an."}
+            body={summa ? "Kontakte entstehen von selbst, sobald Ordo deine Rechnungen liest – oder du legst sie hier an." : "Leg deinen ersten Kunden oder Lieferanten an."}
             action={canWrite ? <Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Kontakt anlegen</Button> : undefined}
           />
         )
@@ -645,7 +645,7 @@ export function ContactDialog({ open, onClose, contact, kind, onSaved, onDeleted
         {section === "buchhaltung" && summa ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Standardkategorie" hint="Neue Rechnungen von diesem Kontakt landen automatisch hier." className="sm:col-span-2"><CategoryPicker kind={v.kind === "customer" ? "income" : "expense"} value={v.defaultCategoryId} onChange={(id) => set({ defaultCategoryId: id })} /></Field>
-            <Field label="Umsatzsteuer (Standard)" hint="Leer lassen, dann erkennt Summa es aus der Rechnung.">
+            <Field label="Umsatzsteuer (Standard)" hint="Leer lassen, dann erkennt Ordo es aus der Rechnung.">
               <Select value={v.defaultVatTreatment ?? ""} onChange={(e) => set({ defaultVatTreatment: (e.target.value || undefined) as VatTreatment | undefined })}>
                 <option value="">Automatisch</option>
                 {(Object.keys(TREATMENT_LABELS) as VatTreatment[]).map((t) => <option key={t} value={t}>{TREATMENT_LABELS[t]}</option>)}

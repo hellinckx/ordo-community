@@ -20,7 +20,7 @@ export default function Dashboard() {
   const installed = useInstalledModules();
   const { member, role } = useMe();
   const summa = installed.some((m) => m.id === "summa") && can(role, "summa", "read");
-  // more than Summa: projects, stock, production … get the "Heute" strip on top
+  // more than Ordo: projects, stock, production … get the "Heute" strip on top
   const more = installed.some((m) => m.id !== "basis" && m.id !== "summa");
   const widgets = installed.flatMap((m) => (m.dashboardWidgets ?? []).filter((w) => !w.modes || w.modes.includes(profile.mode)));
   const greeting = (() => {
@@ -82,7 +82,7 @@ function SetupSteps() {
   );
 }
 
-/** The Summa part of the Übersicht – unchanged look for Summa-only workspaces. */
+/** The Ordo part of the Übersicht – unchanged look for Ordo-only workspaces. */
 function SummaOverview({ widgetGrid }: { widgetGrid: ReactNode }) {
   const profile = useProfile();
   const vault = useVault();
@@ -122,7 +122,7 @@ function SummaOverview({ widgetGrid }: { widgetGrid: ReactNode }) {
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold">{openItems ? `${openItems} ${openItems === 1 ? "Rechnung braucht" : "Rechnungen brauchen"} einen kurzen Blick` : "Alles erledigt"}</div>
           <p className="mt-0.5 text-sm text-(--text-muted)">
-            {openItems ? "Summa war sich bei ein paar Angaben nicht sicher. Kurz prüfen, dann ist alles gebucht." : intake.canScan ? "Neue Rechnungen in deinen Ordnern holt Summa mit einem Klick." : "Neue Rechnungen hochladen oder einfach ins Fenster ziehen – Summa liest und bucht sie selbst."}
+            {openItems ? "Ordo war sich bei ein paar Angaben nicht sicher. Kurz prüfen, dann ist alles gebucht." : intake.canScan ? "Neue Rechnungen in deinen Ordnern holt Ordo mit einem Klick." : "Neue Rechnungen hochladen oder einfach ins Fenster ziehen – Ordo liest und bucht sie selbst."}
             {autoBooked ? <span className="ml-1 inline-flex items-center gap-1 whitespace-nowrap"><Zap className="h-3.5 w-3.5 text-brand-600" />{autoBooked} heuer automatisch gebucht.</span> : null}
           </p>
         </div>
@@ -284,7 +284,7 @@ function todayItems(vault: Vault, profileId: string, has: (id: string) => boolea
     const expiring = mine(vault.offers).filter((o) => o.status === "sent" && o.validUntil && o.validUntil >= today && o.validUntil <= inAWeek).length;
     if (expiring) items.push({ key: "offers", to: "/angebote", icon: <FileSignature className={icon} />, label: `${plural(expiring, "Angebot läuft", "Angebote laufen")} bald ab` });
   }
-  // when the Summa part is shown below, it already tells about invoices to check
+  // when the Ordo part is shown below, it already tells about invoices to check
   if (withSumma && has("summa") && can(role, "summa", "read")) {
     const review = mine(vault.documents).filter((d) => d.status === "review" || d.status === "inbox").length;
     if (review) items.push({ key: "review", to: "/belege", icon: <ReceiptText className={icon} />, label: `${plural(review, "Rechnung", "Rechnungen")} kurz prüfen`, tone: "warning" });
@@ -344,7 +344,7 @@ function TodayStrip({ withSumma }: { withSumma: boolean }) {
   );
 }
 
-/** Workspace without Summa and without other modules: a calm starting point. */
+/** Workspace without Ordo and without other modules: a calm starting point. */
 function BasisStart() {
   const tiles = [
     { to: "/kontakte?neu=1", icon: <Contact2 className="h-5 w-5" />, title: "Kontakte", body: "Kunden und Lieferanten mit Ansprechpartnern" },

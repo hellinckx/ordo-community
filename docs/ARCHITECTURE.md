@@ -1,6 +1,6 @@
 # Architektur
 
-Ordo ist eine lokale App mit Modulen. Alle Daten liegen in einem verschlüsselten Tresor; Desktop (Tauri) und Web/PWA teilen denselben Code. Summa ist das Buchhaltungsmodul, Atlas der KI-Assistent. Leitfaden für Modul-Arbeit: [`ORDO-BUILD.md`](ORDO-BUILD.md).
+Ordo ist eine lokale App mit Modulen. Alle Daten liegen in einem verschlüsselten Tresor; Desktop (Tauri) und Web/PWA teilen denselben Code. Ordo ist das Buchhaltungsmodul, Atlas der KI-Assistent. Leitfaden für Modul-Arbeit: [`ORDO-BUILD.md`](ORDO-BUILD.md).
 
 Updates verwenden einen gemeinsamen Zustand und einen globalen Hinweis, auch vor Anmeldung und Entsperren. Die Prüfung läuft beim Start, alle fünf Minuten sowie bei Rückkehr in die App und nach Wiederherstellung der Verbindung. Auf dem Handy ist Ordo eine installierbare PWA: `version.json` wird unabhängig vom Service Worker ohne Cache geprüft, der Worker lädt neue Dateien im Hintergrund. „Jetzt aktualisieren“ speichert den Tresor, wartet auf vollständige Dateien und aktiviert die neue Version. Andere offene Tabs werden dabei nicht ungefragt neu geladen. Windows verwendet signierte Installer; macOS bietet den verfügbaren Mac-Download an. Die Community-Desktop-Ausgabe hat bewusst keinen privaten Updatekanal; selbst gehostete PWAs prüfen ihren eigenen Server.
 
@@ -41,17 +41,17 @@ Updates verwenden einen gemeinsamen Zustand und einen globalen Hinweis, auch vor
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-Technische Namen aus der Summa-Zeit bleiben bewusst stehen, damit bestehende Tresore, Konten und Installationen weiterlaufen: Dateiformat `SUMMA\x01`, Tresordatei `vault.summa`, interne Tresor-Backups `*.summa-backup`, Tauri-`identifier` `at.summa.app`, Supabase-Tabellen `summa_*` und Bucket `summa`. Gespeicherte Komplettsicherungen heißen seit Oktober 2026 `*.ordo`; ältere `*.summa`-Dateien lassen sich weiterhin wiederherstellen (gleiches Format).
+Technische Namen aus der Ordo-Zeit bleiben bewusst stehen, damit bestehende Tresore, Konten und Installationen weiterlaufen: Dateiformat `SUMMA\x01`, Tresordatei `vault.summa`, interne Tresor-Backups `*.summa-backup`, Tauri-`identifier` `at.summa.app`, Supabase-Tabellen `summa_*` und Bucket `summa`. Gespeicherte Komplettsicherungen heißen seit Oktober 2026 `*.ordo`; ältere `*.summa`-Dateien lassen sich weiterhin wiederherstellen (gleiches Format).
 
 ## Module
 
 Jedes Modul ist ein Manifest (`OrdoModule`, `packages/app/src/modules/types.ts`) in `modules/<id>/index.tsx` und steht in `modules/registry.ts`. Ein Manifest liefert Navigation, Routen, Schnellaktionen („+ Neu“), Widgets für die Übersicht, Einstellungs-Tabs, Demo-Daten und Kontext für Atlas. Sidebar, Router, Modul-Übersicht (`/module`) und Einstellungen lesen das automatisch.
 
-- Installiert ist, was in `vault.settings.modules` steht (Standard: Basis + Summa). Entfernen blendet nur aus; die Daten bleiben im Tresor.
+- Installiert ist, was in `vault.settings.modules` steht (Standard: Basis + Ordo). Entfernen blendet nur aus; die Daten bleiben im Tresor.
 - Welche Module ein Konto überhaupt nutzen darf, kommt bei Sync-Konten vom Server (`summa_settings.module_access`, pro Konto `summa_users.modules`); offline ist alles erlaubt.
 - Projekte, Lager und Produktion gibt es für Firmen-Profile; Produktion braucht Produkte & Lager.
 
-## Datenfluss „Rechnung → Buchung“ (Summa)
+## Datenfluss „Rechnung → Buchung“ (Ordo)
 
 1. Datei kommt an (Drop, Dialog, Kamera, überwachter Ordner) → `importer.ts` prüft SHA-256 (Duplikate) → verschlüsselter Anhang + `Document` (Status `processing`).
 2. `extractDocument` (core): Text lokal (PDF-Textebene, sonst Seiten rendern → OCR) → `parseReceiptText` (Regeln) → optional KI mit JSON-Schema → `mergeExtractions` (KI gewinnt bei hoher Sicherheit, Regeln füllen Lücken und prüfen Betrag/Datum) → `suggestCategory` (Kontakt-Gedächtnis > KI-Vorschlag > Stichwörter).
@@ -79,4 +79,4 @@ Jedes Modul ist ein Manifest (`OrdoModule`, `packages/app/src/modules/types.ts`)
 
 ## Persistenz
 
-Ein Vault = ein JSON-Dokument (alle Entitäten mit `id/createdAt/updatedAt/deletedAt`, Geschäftsdaten mit `profileId`) → gzip → AES-GCM → Speicheradapter. Soft-Delete + `revision` ermöglichen Merge (Import/Sync). Anhänge und Dateien sind separate verschlüsselte Blobs. Neben den Summa-Sammlungen (`contacts, transactions, invoices, documents, …`) enthält der Tresor die Ordo-Sammlungen `members, projects, tasks, milestones, timeEntries, offers, products, stockMoves, workOrders, folders, files, atlasChats`.
+Ein Vault = ein JSON-Dokument (alle Entitäten mit `id/createdAt/updatedAt/deletedAt`, Geschäftsdaten mit `profileId`) → gzip → AES-GCM → Speicheradapter. Soft-Delete + `revision` ermöglichen Merge (Import/Sync). Anhänge und Dateien sind separate verschlüsselte Blobs. Neben den Ordo-Sammlungen (`contacts, transactions, invoices, documents, …`) enthält der Tresor die Ordo-Sammlungen `members, projects, tasks, milestones, timeEntries, offers, products, stockMoves, workOrders, folders, files, atlasChats`.

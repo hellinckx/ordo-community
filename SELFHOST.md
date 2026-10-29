@@ -1,5 +1,9 @@
 # Ordo selbst betreiben
 
+## Lokal ohne Konto starten
+
+Lade die Windows- oder macOS-Ausgabe aus den Community-Releases herunter. Wähle beim ersten Start **„Lokal ohne Konto starten“** und richte einen verschlüsselten Tresor ein. Es ist weder eine E-Mail-Adresse noch eine Datenbank nötig. Rechnungen, Buchungen, Steuern und Anlagen gehören immer dazu. Weitere Funktionen aktivierst du unter **Add-ons**.
+
 Ordo braucht keinen Server: Ohne Konto bleibt alles verschlüsselt auf dem Gerät. Einen Server brauchst du erst, wenn mehrere Geräte oder ein Team dieselben Daten sehen sollen. Dafür nutzt Ordo eine **eigene Datenbank** – ein Supabase-Projekt, das dir gehört.
 
 | | Datenbank | App |
@@ -12,7 +16,7 @@ In jedem Fall liegen auf dem Server nur verschlüsselte Daten: der versiegelte T
 
 ## A. Eigenes Projekt bei Supabase
 
-In der App auf **„Kostenlos mit eigener Datenbank“** (Startbildschirm oder Einstellungen → Konto). Der Assistent erklärt jeden Schritt.
+Auf dem Startbildschirm **„Eigene Datenbank verbinden“** oder **„Datenbank einrichten“** wählen. Später findest du dieselben Möglichkeiten unter **Einstellungen → Konto & Speicherort**. Der Assistent erklärt jeden Schritt.
 
 1. Auf [supabase.com](https://supabase.com) ein Gratis-Projekt anlegen, am besten in der Region **Central EU (Frankfurt)**.
 2. Im **SQL Editor** das Ordo-SQL einspielen – der Assistent kopiert `supabase/schema.sql` und `supabase/own-project.sql` in einem Stück. Am Ende steht „Ordo ist eingerichtet – Schema-Version …“.
@@ -49,15 +53,15 @@ Die Web-App ist eine statische Seite unter `/app/`. Mit Docker:
 
 ```bash
 docker build -t ordo-web \
-  --build-arg VITE_SUMMA_SYNC_URL=https://abcdefghijklmnopqrst.supabase.co \
-  --build-arg VITE_SUMMA_SYNC_ANON_KEY=sb_publishable_… \
-  --build-arg VITE_SUMMA_WEB_URL=https://ordo.deine-firma.at/app/ \
+  --build-arg VITE_ORDO_SYNC_URL=https://abcdefghijklmnopqrst.supabase.co \
+  --build-arg VITE_ORDO_SYNC_ANON_KEY=sb_publishable_… \
+  --build-arg VITE_ORDO_WEB_URL=https://ordo.deine-firma.at/app/ \
   .
 docker run -p 8080:8080 ordo-web
 ```
 
-- `VITE_SUMMA_SYNC_URL` / `VITE_SUMMA_SYNC_ANON_KEY` (optional): eine Datenbank, die deine Installation von Haus aus verwendet – dann melden sich alle direkt mit E-Mail und Passwort an, ohne Verbindungscode.
-- `VITE_SUMMA_WEB_URL` (optional): Adresse der App für Links in Bestätigungs-Mails; in Supabase unter Authentication → URL Configuration erlauben. Ohne Angabe gilt die Site URL des Projekts.
+- `VITE_ORDO_SYNC_URL` / `VITE_ORDO_SYNC_ANON_KEY` (optional): eine Datenbank, die deine Installation von Haus aus verwendet – dann melden sich alle direkt mit E-Mail und Passwort an, ohne Verbindungscode.
+- `VITE_ORDO_WEB_URL` (optional): Adresse der App für Links in Bestätigungs-Mails; in Supabase unter Authentication → URL Configuration erlauben. Ohne Angabe gilt die Site URL des Projekts.
 - Ohne Docker: `pnpm install && pnpm build:app`, dann `packages/app/dist` ausliefern. Regeln wie in `deploy/selfhost/nginx.conf`: Service Worker und Manifest nie zwischenspeichern, `/app/*` auf `/app/index.html` leiten.
 - Der Build lädt einmalig die Sprachdaten für die Texterkennung (`packages/app/scripts/prepare-assets.mjs`); danach liefert deine Installation sie selbst aus.
 

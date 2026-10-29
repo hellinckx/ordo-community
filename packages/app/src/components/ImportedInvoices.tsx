@@ -42,11 +42,11 @@ export function ImportedInvoices() {
         <div className="flex flex-wrap items-start gap-4">
           <div className="rounded-xl bg-brand-50 p-2 text-brand-700 dark:bg-brand-950 dark:text-brand-300"><FileInput className="h-6 w-6" /></div>
           <div className="min-w-0 flex-1 text-sm">
-            <div className="font-semibold">So kommen deine Rechnungen in Summa</div>
+            <div className="font-semibold">So kommen deine Rechnungen in Ordo</div>
             <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-(--text-muted)">
               <li>Rechnung wie gewohnt in deinem Programm erstellen und als PDF speichern.</li>
               <li>{isTauri ? <>PDF in deinen <strong>Ordner für ausgehende Rechnungen</strong> legen – oder hier hochladen.</> : <>PDF hier hochladen (am Desktop kann ein Ordner automatisch überwacht werden).</>}</li>
-              <li>Summa liest Kunde, Nummer, Betrag und USt, bucht die Einnahme und hakt sie ab, sobald bezahlt wurde.</li>
+              <li>Ordo liest Kunde, Nummer, Betrag und USt, bucht die Einnahme und hakt sie ab, sobald bezahlt wurde.</li>
             </ol>
           </div>
           <div className="flex flex-wrap gap-2">

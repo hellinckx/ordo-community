@@ -51,7 +51,7 @@ export function AiProviderSetup({ onboarding, onReadyChange }: { onboarding?: bo
     try {
       const r = await platform.codex.login();
       await refreshCodex();
-      if (r.ok) toast.success("Mit ChatGPT angemeldet", "Summa liest deine Rechnungen ab jetzt mit deinem ChatGPT-Konto.");
+      if (r.ok) toast.success("Mit ChatGPT angemeldet", "Ordo liest deine Rechnungen ab jetzt mit deinem ChatGPT-Konto.");
       else toast.error("Anmeldung fehlgeschlagen", r.message);
     } finally {
       setLoggingIn(false);

@@ -301,7 +301,7 @@ async function runExtraction(doc: SummaDocument, bytes: Uint8Array, onStatus: (s
 export function importFiles(files: { name: string; mime?: string; bytes: Uint8Array; path?: string }[], source: DocumentSource, opts: { direction?: "incoming" | "outgoing" } = {}): boolean {
   if (!files.length) return false;
   useImporter.getState().enqueue(files.map((f) => ({ ...f, source, direction: opts.direction })));
-  if (source !== "bank") toast.info(files.length === 1 ? `„${files[0]!.name}“ wird verarbeitet` : `${files.length} Dateien werden verarbeitet`, opts.direction === "outgoing" ? "Rechnung an einen Kunden – wird als Einnahme gebucht." : "Eindeutiges bucht Summa selbst, der Rest wartet unter „Zu prüfen“.");
+  if (source !== "bank") toast.info(files.length === 1 ? `„${files[0]!.name}“ wird verarbeitet` : `${files.length} Dateien werden verarbeitet`, opts.direction === "outgoing" ? "Rechnung an einen Kunden – wird als Einnahme gebucht." : "Eindeutiges bucht Ordo selbst, der Rest wartet unter „Zu prüfen“.");
   return true;
 }
 

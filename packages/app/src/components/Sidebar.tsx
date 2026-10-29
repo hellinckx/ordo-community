@@ -31,7 +31,7 @@ export interface NavSection {
 }
 
 /**
- * Builds the sidebar from the installed modules. With only Summa installed the layout stays the simple one
+ * Builds the sidebar from the installed modules. With only Ordo installed the layout stays the simple one
  * people know (flat list + "Mehr"); as soon as another module is installed, items are grouped per module.
  */
 export function useNavModel() {
@@ -50,37 +50,30 @@ export function useNavModel() {
         .filter((n) => !n.modes || n.modes.includes(profile.mode))
         .map((n) => ({ to: n.to, label: n.labelFor?.[profile.mode] ?? n.label, short: n.short, icon: n.icon, badge: badges[n.to], mobileRank: n.mobileRank, secondary: n.secondary, advanced: n.advanced }));
     const basis = modules.find((m) => m.id === "basis");
-    const extras = modules.filter((m) => m.id !== "basis" && visible(m));
-    const simple = extras.every((m) => m.id === "summa");
+    const accounting = modules.find((m) => m.id === "summa");
+    const addons = modules.filter((m) => !m.required && visible(m));
+    const simple = addons.length === 0;
     const basisItems = basis ? items(basis) : [];
     const top = basisItems.filter((n) => n.to === "/" || n.to === "/atlas");
     const general = basisItems.filter((n) => n.to !== "/" && n.to !== "/atlas");
 
-    let sections: NavSection[];
-    if (simple) {
-      const summa = extras.find((m) => m.id === "summa");
-      const summaItems = summa ? items(summa) : [];
-      sections = [
-        { id: "top", items: [...top.slice(0, 1), ...summaItems.filter((n) => !n.secondary), ...top.slice(1)] },
-        { id: "more", title: "Mehr", items: [...summaItems.filter((n) => n.secondary), ...general.filter((n) => !n.advanced)] },
-      ];
-    } else {
-      sections = [
-        { id: "top", items: top },
-        ...extras.map((m) => ({ id: m.id, title: m.title, module: m, items: items(m) })),
-        { id: "basis", title: "Allgemein", items: general },
-      ];
-    }
+    const accountingItems = accounting ? items(accounting) : [];
+    let sections: NavSection[] = [
+      { id: "top", items: [...top.slice(0, 1), ...accountingItems.filter((n) => !n.secondary), ...top.slice(1)] },
+      { id: "more", title: "Mehr", items: [...accountingItems.filter((n) => n.secondary), ...general.filter((n) => !simple || !n.advanced)] },
+      ...addons.map((m) => ({ id: m.id, title: `Add-on · ${m.title}`, module: m, items: items(m) })),
+    ];
     sections = sections.filter((s) => s.items.length);
 
     const bottom: NavItem[] = [
-      { to: "/module", label: "Module", icon: LayoutGrid },
+      { to: "/module", label: "Add-ons", icon: LayoutGrid },
       { to: "/einstellungen", label: "Einstellungen", icon: SettingsIcon },
       ...(isAdmin && PARTS.adminPath ? [{ to: PARTS.adminPath, label: "Admin", icon: ShieldCheck }] : []),
     ];
 
     const all = sections.flatMap((s) => s.items);
-    const mobile = [...all].filter((n) => n.mobileRank !== undefined).sort((a, b) => (a.mobileRank ?? 9) - (b.mobileRank ?? 9)).slice(0, 5);
+    // Add-ons remain available through the menu; the mobile tabs keep the app's accounting tasks stable.
+    const mobile = [...top, ...accountingItems].filter((n) => n.mobileRank !== undefined).sort((a, b) => (a.mobileRank ?? 9) - (b.mobileRank ?? 9)).slice(0, 5);
 
     // Outgoing invoices are reviewed on the incoming page (?richtung=ausgang) but belong to "Ausgehend".
     const outgoingView = location.pathname.startsWith("/belege") && new URLSearchParams(location.search).get("richtung") === "ausgang";
@@ -161,9 +154,9 @@ export function Sidebar({ solid }: { solid?: boolean } = {}) {
               <div className="min-w-0 flex-1 text-[13px]">
                 <div className="font-medium">Ordo kann mehr</div>
                 <p className="mt-0.5 text-xs text-(--text-muted)">Projekte, Zeiterfassung, Lager und Produktion – wenn du sie brauchst.</p>
-                <button type="button" onClick={() => navigate("/module")} className="mt-2 text-xs font-medium text-brand-700 hover:underline dark:text-brand-400">Module ansehen</button>
+                <button type="button" onClick={() => navigate("/module")} className="mt-2 text-xs font-medium text-brand-700 hover:underline dark:text-brand-400">Add-ons ansehen</button>
               </div>
-              <button type="button" aria-label="Ausblenden" title="Ausblenden (wieder unter Module)" onClick={() => mutate((s) => ({ ...s, ui: { ...s.ui, hideUpgrade: true } }))} className="rounded-md p-0.5 text-(--text-muted) hover:bg-(--surface-2)"><X className="h-3.5 w-3.5" /></button>
+              <button type="button" aria-label="Ausblenden" title="Ausblenden (wieder unter Add-ons)" onClick={() => mutate((s) => ({ ...s, ui: { ...s.ui, hideUpgrade: true } }))} className="rounded-md p-0.5 text-(--text-muted) hover:bg-(--surface-2)"><X className="h-3.5 w-3.5" /></button>
             </div>
           </div>
         ) : null}

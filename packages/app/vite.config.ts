@@ -27,7 +27,7 @@ export default defineConfig({
             manifest: {
               name: "Ordo",
               short_name: "Ordo",
-              description: "Buchhaltung, Projekte und Lager für Selbstständige und kleine Firmen – lokal und verschlüsselt.",
+              description: "Deine Buchhaltungs-App mit optionalen Add-ons – lokal und verschlüsselt.",
               theme_color: "#f5f5f7",
               background_color: "#f5f5f7",
               display: "standalone",

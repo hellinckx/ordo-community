@@ -4,7 +4,7 @@ Stand: 27. Oktober 2026. Die gemeinsame Web- und Desktop-Oberfläche liegt unter
 
 ## Ablauf
 
-Beim Lesen eingehender Rechnungen erkennt Summa anhand der Beschreibung und Positionen mögliche Anlagenkäufe. Auch eine bekannte Standardkategorie des Lieferanten verhindert diese Erkennung nicht. Reparaturen, Wartung, Miete und Leasing werden anhand dieser Begriffe von der Anschaffung unterschieden. Die Erkennung ist ein Vorschlag; Anlagen und GWG bleiben vor dem Buchen zur Prüfung offen.
+Beim Lesen eingehender Rechnungen erkennt Ordo anhand der Beschreibung und Positionen mögliche Anlagenkäufe. Auch eine bekannte Standardkategorie des Lieferanten verhindert diese Erkennung nicht. Reparaturen, Wartung, Miete und Leasing werden anhand dieser Begriffe von der Anschaffung unterschieden. Die Erkennung ist ein Vorschlag; Anlagen und GWG bleiben vor dem Buchen zur Prüfung offen.
 
 Im Buchungsformular erscheinen Inbetriebnahme, Nutzungsdauer, Abschreibungsmethode, Privatanteil und Anlagekonto. Beim Buchen entsteht eine verknüpfte Anlage. Erneutes Speichern aktualisiert diese Anlage. Lieferant und Anschrift werden aus Kontakt oder Rechnung übernommen; fehlende Angaben sind im Verzeichnis erkennbar.
 

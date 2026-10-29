@@ -9,7 +9,7 @@ export function setInvoiceMode(profile: Profile, mode: InvoiceMode) {
   requireStore().update("profiles", profile.id, (p) => ({ ...p, company: { ...p.company, invoiceMode: mode }, updatedAt: nowIso() }), "profile.invoiceMode");
 }
 
-/** Two large choice cards: write invoices in Summa vs. import them from another program. */
+/** Two large choice cards: write invoices in Ordo vs. import them from another program. */
 export function InvoiceModeChooser({ profile, value, onChange, compact }: { profile: Profile; value: InvoiceMode | undefined; onChange?: (m: InvoiceMode) => void; compact?: boolean }) {
   const pick = (m: InvoiceMode) => {
     setInvoiceMode(profile, m);

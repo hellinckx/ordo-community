@@ -136,7 +136,7 @@ export const ApiTransactionInputSchema = z.object({
   contactId: z.string().optional(),
   /** Matched to an existing contact by name; created when unknown. */
   contactName: z.string().optional(),
-  /** Category name as shown in Summa (e.g. "Büromaterial"); unknown names fall back to the default category. */
+  /** Category name as shown in Ordo (e.g. "Büromaterial"); unknown names fall back to the default category. */
   category: z.string().optional(),
   paymentMethod: z.enum(["bank", "cash", "card", "paypal", "direct_debit", "other"]).default("bank"),
   invoiceNumber: z.string().default(""),

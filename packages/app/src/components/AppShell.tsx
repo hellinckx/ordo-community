@@ -196,7 +196,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="rounded-2xl border-2 border-dashed border-white/80 px-10 py-8 text-center text-white">
             <Upload className="mx-auto mb-2 h-10 w-10" />
             <div className="text-lg font-semibold">Hier loslassen</div>
-            <div className="text-sm opacity-90">Rechnungen, Kassenbons, Kontoauszüge – Summa erkennt alles selbst</div>
+            <div className="text-sm opacity-90">Rechnungen, Kassenbons, Kontoauszüge – Ordo erkennt alles selbst</div>
           </div>
         </div>
       ) : null}

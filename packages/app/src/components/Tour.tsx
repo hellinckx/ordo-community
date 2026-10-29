@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { ArrowLeft, ArrowRight, Blocks, Boxes, Camera, CheckCircle2, Cloud, Factory, FileSearch, FileText, Fingerprint, FolderKanban, FolderOpen, KeyRound, LayoutGrid, MessageCircle, Scale, ShieldCheck, Sparkles, SquarePen, Upload, X } from "lucide-react";
 import { useSession } from "@/state/session";
 import { useProfile } from "@/state/hooks";
-import { SummaMark } from "@/components/Logo";
+import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui";
 import { cls } from "@/lib/format";
 import { isMobile, isTauri } from "@/platform";
@@ -71,7 +71,7 @@ function OrdoMarkWhite({ className }: { className?: string }) {
 const pt = (icon: ReactNode, text: ReactNode) => ({ icon, text });
 
 /**
- * Welcome tour: Willkommen → Rechnungen (Summa) → Atlas → Module → Sicherheit → Fertig.
+ * Welcome tour: Willkommen → Rechnungen (Ordo) → Atlas → Add-ons → Sicherheit → Fertig.
  * One accent colour throughout; module tints stay on the module tiles elsewhere in the app.
  */
 export function Tour() {
@@ -104,20 +104,20 @@ export function Tour() {
       },
       {
         id: "summa",
-        icon: <SummaMark className="h-14 w-14" />,
-        eyebrow: "Summa · Buchhaltung",
+        icon: <Logo className="h-14 w-14" />,
+        eyebrow: "Ordo · Buchhaltung",
         title: "Rechnungen rein, Steuern raus",
         body: isBusiness
-          ? "Summa liest Rechnungen und Kassenbons, bucht Eindeutiges von selbst und rechnet Umsatzsteuer-Voranmeldung und Gewinn laufend mit."
-          : "Summa liest Rechnungen und Kassenbons, bucht Eindeutiges von selbst und sammelt alles, was du bei der Arbeitnehmerveranlagung absetzen kannst.",
+          ? "Ordo liest Rechnungen und Kassenbons, bucht Eindeutiges von selbst und rechnet Umsatzsteuer-Voranmeldung und Gewinn laufend mit."
+          : "Ordo liest Rechnungen und Kassenbons, bucht Eindeutiges von selbst und sammelt alles, was du bei der Arbeitnehmerveranlagung absetzen kannst.",
         points: [
           pt(<Upload className="h-4 w-4" />, "Datei ins Fenster ziehen – PDF, Foto, Scan oder Excel."),
           isTauri
-            ? pt(<FolderOpen className="h-4 w-4" />, "Oder einen Ordner verbinden, etwa OneDrive oder den Scanner-Ordner. Neue Dateien holt Summa dann selbst.")
+            ? pt(<FolderOpen className="h-4 w-4" />, "Oder einen Ordner verbinden, etwa OneDrive oder den Scanner-Ordner. Neue Dateien holt Ordo dann selbst.")
             : pt(<Camera className="h-4 w-4" />, isMobile ? "Kassenbons fotografierst du direkt mit der Kamera." : "Am Handy fotografierst du Kassenbons direkt mit der Kamera."),
           isBusiness
-            ? pt(<FileText className="h-4 w-4" />, "Rechnungen an Kunden schreibst du in Summa oder holst sie aus deinem bisherigen Programm.")
-            : pt(<FileSearch className="h-4 w-4" />, "Nur wenn Summa unsicher ist, legt es dir die Rechnung zum Prüfen vor."),
+            ? pt(<FileText className="h-4 w-4" />, "Rechnungen an Kunden schreibst du in Ordo oder holst sie aus deinem bisherigen Programm.")
+            : pt(<FileSearch className="h-4 w-4" />, "Nur wenn Ordo unsicher ist, legt es dir die Rechnung zum Prüfen vor."),
           pt(
             <Scale className="h-4 w-4" />,
             isBusiness ? "UVA und E 1a sind laufend fertig – jeder Wert mit Kopierknopf für FinanzOnline." : "Werbungskosten und Sonderausgaben landen bei den richtigen Kennzahlen für die L 1.",
@@ -144,19 +144,19 @@ export function Tour() {
       {
         id: "modules",
         icon: <Blocks className="h-10 w-10" />,
-        eyebrow: "Module",
+        eyebrow: "Add-ons",
         title: isBusiness ? "Nimm dazu, was du brauchst" : "Mehr, wenn du es brauchst",
         body: isBusiness ? (
-          <>Summa ist schon dabei. Weitere Module fügst du unter <strong className="text-(--text)">Module</strong> mit einem Klick hinzu und entfernst sie genauso wieder – deine Daten bleiben erhalten.</>
+          <>Die Buchhaltung ist immer dabei. Optionale Add-ons fügst du unter <strong className="text-(--text)">Add-ons</strong> mit einem Klick hinzu und entfernst sie genauso wieder – deine Daten bleiben erhalten.</>
         ) : (
-          <>Für ein Firmen-Profil gibt es weitere Module. Du findest sie unter <strong className="text-(--text)">Module</strong>, sobald du ein Firmen-Profil anlegst.</>
+          <>Für ein Firmen-Profil gibt es weitere Add-ons. Du findest sie unter <strong className="text-(--text)">Add-ons</strong>, sobald du ein Firmen-Profil anlegst.</>
         ),
         points: [
           pt(<FolderKanban className="h-4 w-4" />, <><strong>Projekte &amp; Zeiterfassung</strong> – Aufgaben, Meilensteine, Stoppuhr und Angebote.</>),
           pt(<Boxes className="h-4 w-4" />, <><strong>Produkte &amp; Lager</strong> – Artikel, Preise, Bestand und Inventur.</>),
           pt(<Factory className="h-4 w-4" />, <><strong>Produktion</strong> – Stücklisten und Fertigungsaufträge. Braucht Produkte &amp; Lager.</>),
         ],
-        cta: { label: "Module ansehen", to: "/module" },
+        cta: { label: "Add-ons ansehen", to: "/module" },
       },
       {
         id: "security",

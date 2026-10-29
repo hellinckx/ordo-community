@@ -151,7 +151,7 @@ export const COLLECTIONS: CollectionDef[] = [
     listFields: ["id", "name", "mime", "size", "folderId", "tags", "createdAt"],
     omit: ["attachmentId", "legacyRef"],
   },
-  /* ---------------- Summa ---------------- */
+  /* ---------------- Ordo ---------------- */
   {
     id: "transactions",
     label: "Einnahmen & Ausgaben",

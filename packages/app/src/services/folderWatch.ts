@@ -36,7 +36,7 @@ export function connectedFolders(): WatchFolder[] {
   return (vault?.settings.watchFolders ?? []).filter((f) => f.active && f.profileId === vault?.activeProfileId);
 }
 
-/** "Nach Neuem suchen": looks through every connected folder once and imports what Summa doesn't know yet. */
+/** "Nach Neuem suchen": looks through every connected folder once and imports what Ordo doesn't know yet. */
 export async function scanFoldersNow(): Promise<number> {
   const { platform, store } = useSession.getState();
   if (!platform?.watch || !store) return 0;

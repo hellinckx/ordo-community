@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Ordo Community",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "identifier": "at.ordo.community",
   "build": {
     "frontendDist": "../../../packages/app/dist",
@@ -52,7 +52,7 @@
     ],
     "publisher": "Hellinckx Process Simulation e.U.",
     "shortDescription": "Ordo – Buchhaltung, Projekte und Lager an einem Ort.",
-    "longDescription": "Lokale, verschlüsselte Software für Selbstständige und kleine Firmen: Summa für die Buchhaltung (UVA, E1a, L1), Projekte und Zeiterfassung, Produkte und Lager, Produktion und Atlas als KI-Assistent.",
+    "longDescription": "Ordo ist die lokale, verschlüsselte Buchhaltungs-App mit Rechnungen, Buchungen, Kontoauszügen, Steuern (UVA, E1a, L1), Anlagen und Atlas. Projekte, Zeiterfassung, Lager, Produktion und Post sind optionale Add-ons.",
     "windows": {
       "nsis": {
         "languages": [

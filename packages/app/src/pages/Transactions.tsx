@@ -212,7 +212,7 @@ function RecurringList() {
     <div className="space-y-3">
       <div className="flex justify-end"><Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Dauerauftrag</Button></div>
       {!rules.length ? (
-        <EmptyState icon={<Repeat className="h-8 w-8" />} title="Keine wiederkehrenden Buchungen" body={profile.mode === "business" ? "Miete, Versicherung, SVS, Software-Abos oder dein regelmäßiges Honorar – einmal anlegen, Summa bucht automatisch." : "Gehalt, Miete, Strom, Abos – einmal anlegen, Summa bucht jeden Monat automatisch."} action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Anlegen</Button>} />
+        <EmptyState icon={<Repeat className="h-8 w-8" />} title="Keine wiederkehrenden Buchungen" body={profile.mode === "business" ? "Miete, Versicherung, SVS, Software-Abos oder dein regelmäßiges Honorar – einmal anlegen, Ordo bucht automatisch." : "Gehalt, Miete, Strom, Abos – einmal anlegen, Ordo bucht jeden Monat automatisch."} action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Anlegen</Button>} />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {rules.map((r) => {
@@ -280,7 +280,7 @@ function RecurringDialog({ open, onClose, rule }: { open: boolean; onClose: () =
           {profile.mode === "business" ? <Field label="Steuersatz"><Select value={rate} onChange={(e) => setT({ vatLines: t.grossCents ? [lineFromGross(t.grossCents, Number(e.target.value) as VatRate)] : [] })}><option value={20}>20 %</option><option value={10}>10 %</option><option value={13}>13 %</option><option value={0}>0 %</option></Select></Field> : null}
           <Field label="Zahlungsart"><Select value={t.paymentMethod} onChange={(e) => setT({ paymentMethod: e.target.value as RecurringRule["template"]["paymentMethod"] })}>{PAYMENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</Select></Field>
         </div>
-        <Switch checked={v.autoBook} onChange={(b) => setV({ ...v, autoBook: b })} label="Automatisch buchen" hint="Sonst erinnert Summa dich und du bestätigst jede Buchung." />
+        <Switch checked={v.autoBook} onChange={(b) => setV({ ...v, autoBook: b })} label="Automatisch buchen" hint="Sonst erinnert Ordo dich und du bestätigst jede Buchung." />
         <Switch checked={v.active} onChange={(b) => setV({ ...v, active: b })} label="Aktiv" />
       </div>
       <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} danger title="Dauerauftrag löschen?" confirmLabel="Löschen" onConfirm={() => { requireStore().softDelete("recurringRules", v.id); onClose(); }} />

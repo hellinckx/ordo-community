@@ -1,6 +1,6 @@
 # Sicherheitskonzept
 
-Gilt für Ordo mit allen Modulen – Basis, Summa (Buchhaltung), Projekte, Lager, Produktion – und den Assistenten Atlas.
+Gilt für Ordo mit allen Modulen – Basis, Ordo (Buchhaltung), Projekte, Lager, Produktion – und den Assistenten Atlas.
 
 ## Ziele
 

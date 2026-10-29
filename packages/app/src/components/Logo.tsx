@@ -11,12 +11,3 @@ export function Logo({ className }: { className?: string }) {
     </svg>
   );
 }
-
-/** Summa, the accounting module: the Σ from the original Summa logo. */
-export function SummaMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true" className={cls("shrink-0", className)}>
-      <path d="M44 18H21L33.5 32L21 46H44" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}

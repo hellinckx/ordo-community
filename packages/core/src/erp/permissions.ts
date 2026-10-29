@@ -31,7 +31,7 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
 };
 
 export const AREA_LABELS: Record<Area, string> = {
-  summa: "Buchhaltung (Summa)",
+  summa: "Buchhaltung",
   projects: "Projekte & Aufgaben",
   time: "Zeiterfassung",
   offers: "Angebote",

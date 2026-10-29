@@ -10,7 +10,7 @@ import { Button } from "@/components/ui";
 import { cls } from "@/lib/format";
 
 /**
- * The one action Summa is about: get new invoices in. On the desktop with connected folders it looks through
+ * The one action Ordo is about: get new invoices in. On the desktop with connected folders it looks through
  * the folders, otherwise it opens the file picker (or the camera on the phone).
  */
 export function useIntake() {
@@ -33,7 +33,7 @@ export function useIntake() {
     try {
       const n = await scanFoldersNow();
       if (n) {
-        toast.success(`${n} neue Datei${n === 1 ? "" : "en"} gefunden`, "Summa liest sie jetzt und bucht, was eindeutig ist.");
+        toast.success(`${n} neue Datei${n === 1 ? "" : "en"} gefunden`, "Ordo liest sie jetzt und bucht, was eindeutig ist.");
         navigate("/belege");
       } else toast.info("Nichts Neues", "In deinen Ordnern liegen keine neuen Dateien.");
     } catch (e) {

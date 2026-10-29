@@ -5,7 +5,7 @@
 <h1 align="center">Ordo</h1>
 
 <p align="center">
-  <strong>Buchhaltung, Projekte und Lager für Selbstständige und kleine Firmen.</strong><br />
+  <strong>Deine Buchhaltungs-App. Projekte, Lager und mehr als optionale Add-ons.</strong><br />
   Deine Installation. Deine Datenbank. Freie Software unter GNU AGPL-3.0.
 </p>
 
@@ -61,12 +61,12 @@ Ordo nimmt dir die Routine vor der Steuerberatung ab: Rechnungen sammeln, Zahlen
 
 <img src="screenshots/handy.png" alt="Ordo am Handy: Übersicht mit Navigation unten" width="260" align="right" />
 
-### Alle Module
+### Buchhaltung und Add-ons
 
-- **Summa – Buchhaltung** (immer dabei): eingehende Rechnungen lesen und buchen, ausgehende Rechnungen schreiben oder aus dem bisherigen Programm einlesen, Kontoauszüge abgleichen (George, ELBA, Bank Austria, N26, Revolut, PayPal, CAMT.053), UVA, E 1a, L 1, doppelte Buchführung mit Einheitskontenrahmen, Anlagen mit Abschreibung.
-- **Projekte & Zeiterfassung:** Projekte mit Budget, Arbeitspakete, Meilensteine, Zeitplan, Stoppuhr, Angebote mit PDF, Auswertung mit Prognose und Team-Auslastung.
-- **Produkte & Lager:** Artikel, Bestand, Mindestbestand, Inventur, Lagerwert.
-- **Produktion:** Stücklisten, Arbeitsschritte, Fertigungsaufträge, Fertigware geht ins Lager.
+- **Ordo – Buchhaltung** (immer dabei): eingehende Rechnungen lesen und buchen, ausgehende Rechnungen schreiben oder aus dem bisherigen Programm einlesen, Kontoauszüge abgleichen (George, ELBA, Bank Austria, N26, Revolut, PayPal, CAMT.053), UVA, E 1a, L 1, doppelte Buchführung mit Einheitskontenrahmen, Anlagen mit Abschreibung.
+- **Add-on Projekte & Zeiterfassung:** Projekte mit Budget, Arbeitspakete, Meilensteine, Zeitplan, Stoppuhr, Angebote mit PDF, Auswertung mit Prognose und Team-Auslastung.
+- **Add-on Produkte & Lager:** Artikel, Bestand, Mindestbestand, Inventur, Lagerwert.
+- **Add-on Produktion:** Stücklisten, Arbeitsschritte, Fertigungsaufträge, Fertigware geht ins Lager.
 - **Atlas:** der Assistent in Ordo. Beantwortet Fragen mit deinen Zahlen, zeichnet Diagramme und erledigt Dinge wie Zeiten erfassen – mit deinem eigenen API-Key von Anthropic oder OpenAI oder in der Desktop-App mit deinem ChatGPT-Abo über Codex. Fragt direkt vor Ort nach deiner Einwilligung und zeigt laufende Arbeit samt betroffenem Bereich. Aus, bis du ihn einschaltest.
 - **Schnittstellen:** BMD, ebInterface, E-Rechnung (XRechnung, ZUGFeRD, PEPPOL), SAP Business One, REST, Webhooks und eine lokale Schnittstelle für andere Programme am selben Computer ([docs/API.md](docs/API.md)).
 

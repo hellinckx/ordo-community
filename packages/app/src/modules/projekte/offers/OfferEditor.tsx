@@ -514,7 +514,7 @@ function OfferEditor({ initial, isNew }: { initial: Offer; isNew?: boolean }) {
                 </ul>
               ) : null}
               {!rights.summaInstalled ? (
-                <p className="text-(--text-muted)">Rechnungen schreibst du mit Summa – Buchhaltung. Du findest es unter Module.</p>
+                <p className="text-(--text-muted)">Rechnungen schreibst du mit Ordo – Buchhaltung. Du findest es unter Module.</p>
               ) : status === "accepted" ? (
                 rights.canInvoice ? (
                   <Button className="w-full justify-center" onClick={() => { if (dirty) persist(); setInvoiceOpen(true); }}>
@@ -596,7 +596,7 @@ function OfferEditor({ initial, isNew }: { initial: Offer; isNew?: boolean }) {
         onClose={() => setConfirmDelete(false)}
         danger
         title={`Angebot ${v.number} löschen?`}
-        body={linkedInvoices.length ? "Die Rechnungen, die daraus entstanden sind, bleiben in Summa erhalten." : "Das Angebot landet im Papierkorb des Tresors und verschwindet aus allen Listen."}
+        body={linkedInvoices.length ? "Die Rechnungen, die daraus entstanden sind, bleiben in Ordo erhalten." : "Das Angebot landet im Papierkorb des Tresors und verschwindet aus allen Listen."}
         confirmLabel="Löschen"
         onConfirm={remove}
       />

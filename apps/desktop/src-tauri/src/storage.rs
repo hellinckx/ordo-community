@@ -260,7 +260,7 @@ pub fn restore_backup(app: AppHandle, path: String) -> Result<(), String> {
     let src = PathBuf::from(&path);
     let dir = data_dir(&app)?;
     if !src.starts_with(dir.join("backups")) {
-        return Err("Nur Backups aus dem Summa-Backup-Ordner können wiederhergestellt werden.".into());
+        return Err("Nur Backups aus dem Ordo-Backup-Ordner können wiederhergestellt werden.".into());
     }
     let bytes = fs::read(&src).map_err(|e| e.to_string())?;
     atomic_write(&vault_path(&app)?, &bytes, Some(&dir.join("backups")))

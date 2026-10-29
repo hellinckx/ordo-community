@@ -2,7 +2,7 @@
  * "Angemeldet bleiben": keeps this device unlocked across reloads and restarts. The vault's master key is
  * wrapped with a device key that is generated in the browser as NON-extractable (WebCrypto) and kept in
  * IndexedDB – script on this origin can use it but never read it out, and it does not leave the device.
- * Anyone who can use this browser profile can open Summa, like any app that keeps you signed in; "Sperren",
+ * Anyone who can use this browser profile can open Ordo, like any app that keeps you signed in; "Sperren",
  * "Abmelden" and the idle auto-lock remove the wrapped key again.
  */
 const DB = "summa-device";

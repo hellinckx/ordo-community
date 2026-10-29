@@ -340,7 +340,7 @@ function StockTab({ product }: { product: Product }) {
   const woById = useMemo(() => new Map(workOrders.map((w) => [w.id, w])), [workOrders]);
   const invById = useMemo(() => new Map(invoices.map((i) => [i.id, i])), [invoices]);
   const txById = useMemo(() => new Map(transactions.map((t) => [t.id, t])), [transactions]);
-  /** Where a move came from in Summa: outgoing invoice / credit note, or the incoming invoice it was bought with. */
+  /** Where a move came from in Ordo: outgoing invoice / credit note, or the incoming invoice it was bought with. */
   const source = (m: StockMove): { to: string; label: string } | undefined => {
     const inv = m.invoiceId ? invById.get(m.invoiceId) : undefined;
     if (inv) return { to: `/rechnungen/${inv.id}`, label: `${inv.kind === "credit_note" ? "Gutschrift" : "Rechnung"} ${inv.number}` };

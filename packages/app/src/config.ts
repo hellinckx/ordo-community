@@ -12,8 +12,8 @@ const env = (key: string) => (import.meta.env[key] as string | undefined) || "";
 
 /** The preconfigured server (url "" = none: without account or with an own database only). */
 export const SUMMA_SYNC_DEFAULT = {
-  url: env("VITE_SUMMA_SYNC_URL") || OPERATOR.server?.url || "",
-  anonKey: env("VITE_SUMMA_SYNC_ANON_KEY") || OPERATOR.server?.anonKey || "",
+  url: env("VITE_ORDO_SYNC_URL") || env("VITE_SUMMA_SYNC_URL") || OPERATOR.server?.url || "",
+  anonKey: env("VITE_ORDO_SYNC_ANON_KEY") || env("VITE_SUMMA_SYNC_ANON_KEY") || OPERATOR.server?.anonKey || "",
   label: OPERATOR.server?.label || "Server (vorkonfiguriert)",
 };
 
@@ -24,7 +24,7 @@ export const HAS_DEFAULT_SERVER = !!(SUMMA_SYNC_DEFAULT.url && SUMMA_SYNC_DEFAUL
  * project's Site URL (desktop origins are not web URLs). Must stay in the project's redirect allow list.
  * Empty: the project's Site URL decides.
  */
-export const SUMMA_WEB_URL = env("VITE_SUMMA_WEB_URL") || OPERATOR.webUrl;
+export const SUMMA_WEB_URL = env("VITE_ORDO_WEB_URL") || env("VITE_SUMMA_WEB_URL") || OPERATOR.webUrl;
 
 /** Project website (landing page, Schnittstellen) – also behind the logo. */
 export const SUMMA_SITE_URL = OPERATOR.website;

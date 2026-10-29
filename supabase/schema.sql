@@ -2,7 +2,7 @@
 -- (or with psql against a self-hosted Supabase), followed by supabase/own-project.sql – the app's setup
 -- "Eigene Datenbank" copies both in one go. Running it again is safe. See SELFHOST.md.
 -- The server only ever stores ciphertext: the sealed vault file and AES-GCM encrypted attachment blobs.
--- Tables are prefixed with summa_ (the name of the accounting module) so they can live next to other apps.
+-- Table prefixes are retained for compatibility with existing databases.
 
 create table if not exists public.summa_roles (
   user_id uuid primary key references auth.users (id) on delete cascade,
@@ -284,7 +284,7 @@ begin
   v_name := 'summa_escrow_' || v_uid::text;
   select id into v_id from vault.secrets where name = v_name;
   if v_id is null then
-    perform vault.create_secret(p_key, v_name, 'Summa vault key for password reset');
+    perform vault.create_secret(p_key, v_name, 'Ordo vault key for password reset');
   else
     perform vault.update_secret(v_id, p_key);
   end if;

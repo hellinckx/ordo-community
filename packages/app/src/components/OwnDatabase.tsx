@@ -99,7 +99,7 @@ export function OwnDatabaseDialog({ open, onClose, onConnected, join }: { open: 
   );
 
   return (
-    <Modal open={open} onClose={close} title={joining ? "Mit eigener Datenbank anmelden" : "Kostenlos mit eigener Datenbank"} size="lg" footer={footer}>
+    <Modal open={open} onClose={close} title={joining ? "Mit eigener Datenbank anmelden" : "Eigene Datenbank einrichten"} size="lg" footer={footer}>
       {joining ? (
         <p className="mb-3 text-sm text-(--text-muted)">Deine Firma oder du selbst habt Ordo schon in einem eigenen Supabase-Projekt eingerichtet? Dann hier verbinden – am einfachsten mit dem Verbindungscode aus Einstellungen → Konto auf dem ersten Gerät. Noch kein Projekt? <button type="button" className="font-medium text-brand-700 hover:underline dark:text-brand-300" onClick={() => { setJoining(false); setStep(0); }}>Neu einrichten</button></p>
       ) : null}
@@ -111,9 +111,9 @@ export function OwnDatabaseDialog({ open, onClose, onConnected, join }: { open: 
 
       {step === 0 ? (
         <div className="space-y-3 text-sm">
-          <p>Statt auf dem Ordo-Server liegen deine verschlüsselten Daten dann in deinem eigenen, kostenlosen Supabase-Projekt. Ordo bleibt gleich – nur der Speicherort gehört dir.</p>
+          <p>Für den Geräteabgleich verbindest du dein eigenes Supabase-Projekt oder deine selbst gehostete Supabase-Instanz. Deine verschlüsselten Daten liegen dort, wo du sie betreibst. Ohne Datenbank funktioniert Ordo lokal auf diesem Gerät.</p>
           <ul className="list-disc space-y-1.5 pl-5 text-(--text-muted)">
-            <li><strong className="text-(--text)">Wir sehen nichts.</strong> Ordo kennt weder die Adresse noch den Schlüssel deines Projekts. Es gibt keine Verbindung zu uns – auch keine Statistik.</li>
+            <li><strong className="text-(--text)">Direkte Verbindung.</strong> Die App verbindet sich mit deiner Datenbank. Adresse, Schlüssel und Daten werden nicht an die Projektentwickler übermittelt.</li>
             <li><strong className="text-(--text)">Du bist der Betreiber.</strong> Supabase ist dann dein Anbieter. Für Sicherungen, Zugänge und Kosten bist du selbst verantwortlich. Wir können nichts wiederherstellen.</li>
             <li><strong className="text-(--text)">Gratis-Plan von Supabase</strong> (Stand Oktober 2026): 500 MB Datenbank, 1 GB Dateien, 5 GB Datenverkehr im Monat, bis zu 2 Projekte. Für eine kleine Firma reicht das meist lange.</li>
             <li><strong className="text-(--text)">Wird es mehr, kostet es Geld – bei Supabase.</strong> Der Pro-Plan liegt bei etwa {SUPABASE_FREE.proUsd} US-Dollar im Monat und wird direkt von Supabase verrechnet, nicht von uns.</li>
@@ -153,7 +153,7 @@ export function OwnDatabaseDialog({ open, onClose, onConnected, join }: { open: 
             <Button variant="outline" onClick={() => sql && void save("ordo-einrichtung.sql", sql.setup)} disabled={!sql}><Download className="h-4 w-4" /> Als Datei speichern</Button>
             {sql ? <span className="self-center text-xs text-(--text-muted)">{Math.round(sql.setup.length / 1024)} KB</span> : null}
           </div>
-          <p className="text-xs text-(--text-muted)">Das SQL legt nur Ordo-Tabellen mit Zugriffsschutz an (alle beginnen mit „summa_“) und einen privaten Speicherordner. Es liest nichts aus und schickt nichts an uns. Später einfach noch einmal ausführen, wenn Ordo eine neue Version braucht – deine Daten bleiben dabei unberührt.</p>
+          <p className="text-xs text-(--text-muted)">Das SQL legt nur Ordo-Tabellen mit Zugriffsschutz an und einen privaten Speicherordner. Es liest nichts aus und schickt nichts an uns. Später einfach noch einmal ausführen, wenn Ordo eine neue Version braucht – deine Daten bleiben dabei unberührt.</p>
         </div>
       ) : null}
 

@@ -1,5 +1,5 @@
 /**
- * Files attached in the Atlas chat: read what is needed from them, or hand invoices to Summa's normal intake.
+ * Files attached in the Atlas chat: read what is needed from them, or hand invoices to Ordo's normal intake.
  * Formats the edition knows on its own (e.g. a backup of the operator's old ERP) bring their own tools.
  */
 import { z } from "zod";
@@ -25,7 +25,7 @@ const ReadInput = z.object({
 const readAttachment = defineTool<z.infer<typeof ReadInput>>({
   name: "read_attachment",
   description:
-    "Liest den Inhalt einer angehängten Datei (Tabelle als Zeilen mit Spaltennamen, Text oder JSON in Abschnitten). Lies nur, was du für die Aufgabe brauchst – bei großen Dateien in Abschnitten. PDFs liest du nicht selbst, Bilder siehst du direkt in der Nachricht; Rechnungen und Kassenbons gibst du mit add_invoice_files an Summa.",
+    "Liest den Inhalt einer angehängten Datei (Tabelle als Zeilen mit Spaltennamen, Text oder JSON in Abschnitten). Lies nur, was du für die Aufgabe brauchst – bei großen Dateien in Abschnitten. PDFs liest du nicht selbst, Bilder siehst du direkt in der Nachricht; Rechnungen und Kassenbons gibst du mit add_invoice_files an Ordo.",
   input: ReadInput,
   kind: "read",
   preview: (input) => `„${getAttachment(input.file_id)?.name ?? "Datei"}“ lesen`,
@@ -55,12 +55,12 @@ const InvoiceInput = z.object({
   direction: z.enum(["incoming", "outgoing"]).describe("incoming = Rechnung an dich (Ausgabe) – der Normalfall; outgoing = deine Rechnung an einen Kunden (Einnahme)"),
 });
 
-/** Summa's normal intake (same as "Rechnungen hinzufügen"): read, recognise, book what is clear. */
+/** Ordo's normal intake (same as "Rechnungen hinzufügen"): read, recognise, book what is clear. */
 function invoiceTool(): AtlasTool {
   return defineTool<z.infer<typeof InvoiceInput>>({
     name: "add_invoice_files",
     description:
-      "Gibt angehängte Rechnungen, Kassenbons oder Kontoauszüge (PDF, Foto) an Summa – genau wie „Rechnungen hinzufügen“: Summa liest sie, bucht Eindeutiges selbst und legt den Rest unter „Zu prüfen“ ab.",
+      "Gibt angehängte Rechnungen, Kassenbons oder Kontoauszüge (PDF, Foto) an Ordo – genau wie „Rechnungen hinzufügen“: Ordo liest sie, bucht Eindeutiges selbst und legt den Rest unter „Zu prüfen“ ab.",
     input: InvoiceInput,
     kind: "write",
     area: "summa",

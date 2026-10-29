@@ -94,7 +94,7 @@ export function writableDefs(env: ToolEnv, can: AtlasToolContext["can"], action:
  */
 function lockedReason(collection: EntityCollection, r: Record<string, unknown>): string | undefined {
   if (collection === "transactions") {
-    if (r.invoiceId || r.origin === "invoice") return "Diese Buchung gehört zu einer Rechnung. Ändere sie bitte über die Rechnung in Summa.";
+    if (r.invoiceId || r.origin === "invoice") return "Diese Buchung gehört zu einer Rechnung. Ändere sie bitte über die Rechnung in Ordo.";
     if (r.assetId || r.origin === "afa") return "Diese Buchung gehört zu einer Anlage (AfA). Ändere sie bitte unter Anlagen.";
     if (r.recurringRuleId) return "Diese Buchung stammt aus einer wiederkehrenden Buchung. Ändere sie bitte dort.";
   }
@@ -610,7 +610,7 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
       defineTool({
         name: "book_transaction",
         description:
-          "Bucht eine Einnahme oder Ausgabe (Summa) mit Bruttobetrag in Cent und USt-Satz; Ordo rechnet netto/USt. Gilt als am Datum bezahlt. Kontakt, Kategorie und Projekt per id oder Name. Für Rechnungen an Kunden nicht verwenden – die schreibt die Person in Summa.",
+          "Bucht eine Einnahme oder Ausgabe (Ordo) mit Bruttobetrag in Cent und USt-Satz; Ordo rechnet netto/USt. Gilt als am Datum bezahlt. Kontakt, Kategorie und Projekt per id oder Name. Für Rechnungen an Kunden nicht verwenden – die schreibt die Person in Ordo.",
         input: z.object({
           kind: z.enum(["expense", "income"]),
           date: ISO.describe("Datum, YYYY-MM-DD"),
@@ -679,7 +679,7 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
       defineTool({
         name: "approve_documents",
         description:
-          "Bucht eingelesene Rechnungen und Bons mit status \"review\" endgültig: Summa hat beim Einlesen schon eine Buchung vorbereitet (transactionId), die hier bestätigt wird. Ist die vorbereitete Kategorie falsch, die Buchung vorher mit update_record korrigieren; ist es in Wahrheit eine Einnahme statt einer Ausgabe, der Person sagen. Vorher mit get_record (documents und die Buchung) prüfen; Unklares (Betrag fehlt, unleserlich) nicht buchen, sondern der Person sagen.",
+          "Bucht eingelesene Rechnungen und Bons mit status \"review\" endgültig: Ordo hat beim Einlesen schon eine Buchung vorbereitet (transactionId), die hier bestätigt wird. Ist die vorbereitete Kategorie falsch, die Buchung vorher mit update_record korrigieren; ist es in Wahrheit eine Einnahme statt einer Ausgabe, der Person sagen. Vorher mit get_record (documents und die Buchung) prüfen; Unklares (Betrag fehlt, unleserlich) nicht buchen, sondern der Person sagen.",
         input: z.object({
           documents: z.array(z.string().describe("id der eingelesenen Rechnung")).min(1).max(150),
         }),
@@ -714,7 +714,7 @@ export function writeTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasToo
               continue;
             }
             if (!draft) {
-              errors.push(`${doc.originalName}: keine vorbereitete Buchung – bitte in Summa öffnen`);
+              errors.push(`${doc.originalName}: keine vorbereitete Buchung – bitte in Ordo öffnen`);
               continue;
             }
             const tx = { ...draft, reviewed: true };

@@ -141,7 +141,7 @@ function SkillsCard({ editable, skills, setSkills }: { editable: boolean; skills
         </fieldset>
         <div className="border-t border-(--border) pt-3 text-sm">
           <div className="font-medium">Was Atlas gerade kann</div>
-          <p className="text-[13px] text-(--text-muted)">Aus den installierten Modulen, deiner Rolle und den Zugriffen oben.</p>
+          <p className="text-[13px] text-(--text-muted)">Aus den aktivierten Add-ons, deiner Rolle und den Zugriffen oben.</p>
           <div className="mt-2 text-[13px] text-(--text-muted)">Nachschauen</div>
           {chips(reads)}
           {writes.length ? (
@@ -208,7 +208,7 @@ function AreaAccessCard({ editable, areas, globalRead, setAreas }: { editable: b
           );
         })}
       </fieldset>
-      <p className="mt-3 text-xs text-(--text-muted)">Standard: Atlas darf überall lesen und ändern – außer bei ausgehenden Rechnungen und im Team, dort nur lesen. Rechnungen an Kunden schreibt Atlas höchstens als Entwurf; versenden kannst nur du in Summa.</p>
+      <p className="mt-3 text-xs text-(--text-muted)">Standard: Atlas darf überall lesen und ändern – außer bei ausgehenden Rechnungen und im Team, dort nur lesen. Rechnungen an Kunden schreibt Atlas höchstens als Entwurf; versenden kannst nur du in Ordo.</p>
     </Card>
   );
 }
@@ -243,7 +243,7 @@ function ClaudeCard({ editable, apiKey, setKey, model, setModel }: { editable: b
   return (
     <Card title="Claude">
       <fieldset disabled={!editable} className="space-y-4">
-        <Field label="Anthropic API-Key" hint="Wird verschlüsselt in deinem Tresor gespeichert. Summa nutzt denselben Schlüssel zum Lesen von Rechnungen.">
+        <Field label="Anthropic API-Key" hint="Wird verschlüsselt in deinem Tresor gespeichert. Ordo nutzt denselben Schlüssel zum Lesen von Rechnungen.">
           <Input type="password" autoComplete="off" spellCheck={false} value={apiKey} onChange={(e) => { setKey(e.target.value); setResult(null); }} placeholder="sk-ant-…" />
         </Field>
         <div className="rounded-xl bg-(--surface-2) px-3 py-2.5 text-[13px] text-(--text-muted)">
@@ -289,7 +289,7 @@ function OpenAiCard({ editable, apiKey, setKey, model, setModel, auto, setAuto }
   return (
     <Card title="OpenAI">
       <fieldset disabled={!editable} className="space-y-4">
-        <Field label="OpenAI API-Key" hint="Wird verschlüsselt in deinem Tresor gespeichert. Summa nutzt denselben Schlüssel, wenn du OpenAI zum Lesen von Rechnungen wählst.">
+        <Field label="OpenAI API-Key" hint="Wird verschlüsselt in deinem Tresor gespeichert. Ordo nutzt denselben Schlüssel, wenn du OpenAI zum Lesen von Rechnungen wählst.">
           <Input type="password" autoComplete="off" spellCheck={false} value={apiKey} onChange={(e) => { setKey(e.target.value); setResult(null); }} placeholder="sk-…" />
         </Field>
         <div className="rounded-xl bg-(--surface-2) px-3 py-2.5 text-[13px] text-(--text-muted)">

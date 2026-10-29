@@ -26,7 +26,7 @@ pub fn run() {
             let dir = storage::data_dir(app.handle())?;
             std::fs::create_dir_all(dir.join("blobs"))?;
             std::fs::create_dir_all(dir.join("backups"))?;
-            log::info!("Summa data dir: {}", dir.display());
+            log::info!("Ordo data dir: {}", dir.display());
             #[cfg(debug_assertions)]
             {
                 if let Some(w) = app.get_webview_window("main") {
@@ -69,5 +69,5 @@ pub fn run() {
             net::net_fetch,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Summa");
+        .expect("error while running Ordo");
 }

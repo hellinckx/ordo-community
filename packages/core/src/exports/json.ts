@@ -2,7 +2,7 @@ import type { Settings, Vault } from "../model/types";
 import { ENTITY_COLLECTIONS, VaultSchema } from "../model/types";
 
 export interface DataExport {
-  format: "summa-data";
+  format: "ordo-data" | "summa-data";
   version: number;
   exportedAt: string;
   app: string;
@@ -18,14 +18,14 @@ export function exportJson(vault: Vault, opts: { includeSecrets?: boolean } = {}
     data.settings.sync.supabaseAnonKey = "";
     data.settings.email.brevoApiKey = "";
   }
-  const out: DataExport = { format: "summa-data", version: data.version, exportedAt: new Date().toISOString(), app: "Summa", data };
+  const out: DataExport = { format: "ordo-data", version: data.version, exportedAt: new Date().toISOString(), app: "Ordo", data };
   return new TextEncoder().encode(JSON.stringify(out, null, 2));
 }
 
 export function parseDataExport(bytes: Uint8Array): Vault {
   const text = new TextDecoder().decode(bytes);
   const obj = JSON.parse(text) as Partial<DataExport>;
-  if (obj.format !== "summa-data" || !obj.data) throw new Error("Keine gültige Summa-Datenexport-Datei.");
+  if ((obj.format !== "ordo-data" && obj.format !== "summa-data") || !obj.data) throw new Error("Keine gültige Ordo-Datenexport-Datei.");
   return VaultSchema.parse(obj.data);
 }
 

@@ -96,7 +96,7 @@ export function RestoreBackupDialog({ open, onClose }: { open: boolean; onClose:
     >
       <div className="space-y-4 text-sm">
         <p className="text-(--text-muted)">
-          Eine Sicherung ist eine Datei mit der Endung <strong className="text-(--text)">.ordo</strong>. Du erstellst sie in Ordo unter <strong className="text-(--text)">Export &amp; Sicherung → „Verschlüsselte Komplettsicherung“</strong> (Dateiname z. B. Ordo_Sicherung_2026-10-22.ordo). Sie enthält alle Daten, verschlüsselt mit dem Passwort, das beim Export galt. Ältere Sicherungen mit der Endung .summa funktionieren genauso.
+          Eine Sicherung ist eine Datei mit der Endung <strong className="text-(--text)">.ordo</strong>. Du erstellst sie in Ordo unter <strong className="text-(--text)">Export &amp; Sicherung → „Verschlüsselte Komplettsicherung“</strong> (Dateiname z. B. Ordo_Sicherung_2026-10-22.ordo). Sie enthält alle Daten, verschlüsselt mit dem Passwort, das beim Export galt. Sicherungen aus früheren Versionen funktionieren weiterhin.
         </p>
         <button type="button" onClick={() => void pick()} className="flex w-full items-center gap-3 rounded-xl border border-dashed border-(--border) px-4 py-3 text-left hover:border-brand-500">
           <FileArchive className="h-5 w-5 shrink-0 text-brand-600" />

@@ -59,7 +59,7 @@ const MODULE_TAB_ICONS: Record<string, ComponentType<{ className?: string }>> = 
 
 /**
  * Einstellungen: first what applies to all of Ordo (account, company, security, Atlas & AI, data & interfaces), then
- * one group per installed module (Summa, Projekte, Produktion). Side navigation on wide screens, a select on phones.
+ * one group per optional add-on. Accounting belongs to the general settings. Side navigation on wide screens, a select on phones.
  */
 export default function Settings() {
   const isBusiness = useProfile().mode === "business";
@@ -68,7 +68,6 @@ export default function Settings() {
   const raw = (tab as Tab) ?? "profil";
   const current = raw === "profile" ? "profil" : raw === "sync" ? "konto" : raw;
   const modules = useInstalledModules();
-  const hasSumma = modules.some((m) => m.id === "summa");
   const basisTabs = new Map((modules.find((m) => m.id === "basis")?.settingsTabs ?? []).map((t) => [t.id, t]));
   // tabs of the operator's edition (e.g. taking over data from an old system) sit next to the basis tabs
   for (const t of PARTS.settingsTabs) basisTabs.set(t.id, t);
@@ -83,6 +82,11 @@ export default function Settings() {
       items: [
         { id: "konto", label: "Konto & Speicherort", icon: Cloud, element: <AccountTab /> },
         { id: "profil", label: "Profil & Firma", icon: User, element: <ProfileTab /> },
+        ...(isBusiness ? [{ id: "rechnungen", label: "Rechnungen schreiben", icon: FileText, element: <InvoiceSettingsTab /> }] : []),
+        { id: "ki", label: "Rechnungen lesen (KI)", icon: Bot, element: <AiTab /> },
+        ...(isTauri ? [{ id: "ordner", label: "Überwachte Ordner", icon: FolderOpen, element: <WatchFolderCards /> }] : []),
+        { id: "kategorien", label: "Kategorien", icon: Tags, element: <CategoriesTab /> },
+        { id: "steuern", label: "Steuern & Buchhaltung", icon: Landmark, element: <TaxTab /> },
         { id: "sicherheit", label: "Sicherheit", icon: ShieldCheck, element: <SecurityTab /> },
         { id: "benachrichtigungen", label: "Hinweise", icon: Bell, element: <NotificationsTab /> },
         ...(isTauri ? [{ id: "backup", label: "Backups", icon: HardDrive, element: <BackupTab /> }] : []),
@@ -95,25 +99,9 @@ export default function Settings() {
       items: [...fromModule("atlas"), { id: "ki-verbrauch", label: "KI-Verbrauch", icon: Gauge, element: <AiUsagePanel /> }],
     },
     { id: "daten", title: "Daten & Schnittstellen", items: [...fromModule("schnittstellen"), ...fromModule("import")] },
-    ...(hasSumma
-      ? [
-          {
-            id: "summa",
-            title: "Summa – Buchhaltung",
-            module: modules.find((m) => m.id === "summa"),
-            items: [
-              ...(isBusiness ? [{ id: "rechnungen", label: "Rechnungen schreiben", icon: FileText, element: <InvoiceSettingsTab /> }] : []),
-              { id: "ki", label: "Rechnungen lesen (KI)", icon: Bot, element: <AiTab /> },
-              ...(isTauri ? [{ id: "ordner", label: "Überwachte Ordner", icon: FolderOpen, element: <WatchFolderCards /> }] : []),
-              { id: "kategorien", label: "Kategorien", icon: Tags, element: <CategoriesTab /> },
-              { id: "steuern", label: "Steuern", icon: Landmark, element: <TaxTab /> },
-            ],
-          },
-        ]
-      : []),
     ...modules
       .filter((m) => m.id !== "basis" && m.id !== "summa" && m.settingsTabs?.length)
-      .map((m) => ({ id: m.id, title: m.title.startsWith(m.name) ? m.title : `${m.name} – ${m.title}`, module: m, items: m.settingsTabs!.map((t) => ({ id: t.id, label: t.label, icon: MODULE_TAB_ICONS[t.id] ?? SettingsIcon, element: t.element })) })),
+      .map((m) => ({ id: m.id, title: `Add-on · ${m.title}`, module: m, items: m.settingsTabs!.map((t) => ({ id: t.id, label: t.label, icon: MODULE_TAB_ICONS[t.id] ?? SettingsIcon, element: t.element })) })),
   ].filter((g) => g.items.length);
   const all = groups.flatMap((g) => g.items.map((i) => ({ ...i, group: g })));
   const active = all.find((i) => i.id === current) ?? all.find((i) => i.id === "profil")!;
@@ -121,7 +109,7 @@ export default function Settings() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Einstellungen" subtitle={active.group.module ? `${active.group.title} · nur für dieses Modul` : `${active.group.title} · gilt für ganz Ordo`} />
+      <PageHeader title="Einstellungen" subtitle={active.group.module ? `${active.group.title} · Einstellungen für diese Erweiterung` : `${active.group.title} · Einstellungen für das aktive Profil in Ordo`} />
       <div className="grid gap-5 xl:grid-cols-[232px_minmax(0,1fr)]">
         <nav aria-label="Einstellungen" className="xl:sticky xl:top-0 xl:self-start">
           {/* the whole picker hides on wide screens – its arrow sits outside the <select> */}
@@ -197,7 +185,7 @@ function ProfileTab() {
           </div>
         </Card>
         <Card title={p.mode === "business" ? "Firmendaten" : "Persönliche Daten"}>
-          {p.mode === "business" ? <p className="mb-4 text-sm text-(--text-muted)">Werden für Berichte, die Erkennung deiner eigenen Rechnungen und – falls Summa deine Rechnungen schreibt – den Rechnungskopf verwendet. Nummernkreis, Logo und Fußzeile findest du unter <strong>Rechnungen</strong>.</p> : null}
+          {p.mode === "business" ? <p className="mb-4 text-sm text-(--text-muted)">Werden für Berichte, die Erkennung deiner eigenen Rechnungen und – falls Ordo deine Rechnungen schreibt – den Rechnungskopf verwendet. Nummernkreis, Logo und Fußzeile findest du unter <strong>Rechnungen</strong>.</p> : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={p.mode === "business" ? "Firmenname" : "Name"} className="sm:col-span-2"><Input value={c.name} onChange={(e) => setC({ name: e.target.value })} /></Field>
             {p.mode === "business" ? <Field label="Rechtsform / Zusatz"><Input value={c.legalForm} onChange={(e) => setC({ legalForm: e.target.value })} placeholder="e.U., GmbH, Freiberufler …" /></Field> : null}
@@ -274,8 +262,8 @@ function TaxTab() {
       <Card title="Hinweise">
         <ul className="list-disc space-y-1 pl-5 text-sm text-(--text-muted)">
           <li>Kennzahlen basieren auf den amtlichen Formularen U 30 (2026), E 1a (2025) und L 1 (2025) des BMF.</li>
-          <li>Summa ersetzt keine Steuerberatung. Bei Sonderfällen (Reverse Charge, Pauschalierung, Bilanzierung) lohnt ein kurzer Check mit dem Steuerberater – der Steuerberater-Export liefert alles Nötige.</li>
-          <li>Rechnungen müssen 7 Jahre aufbewahrt werden (§ 132 BAO). Summa speichert alle Originale verschlüsselt.</li>
+          <li>Ordo ersetzt keine Steuerberatung. Bei Sonderfällen (Reverse Charge, Pauschalierung, Bilanzierung) lohnt ein kurzer Check mit dem Steuerberater – der Steuerberater-Export liefert alles Nötige.</li>
+          <li>Rechnungen müssen 7 Jahre aufbewahrt werden (§ 132 BAO). Ordo speichert alle Originale verschlüsselt.</li>
         </ul>
       </Card>
     </div>
@@ -286,7 +274,7 @@ function TaxTab() {
 
 function AiTab() {
   const STRATEGIES: { id: SettingsT["ai"]["strategy"]; label: string; desc: string }[] = [
-    { id: "local_first", label: "Lokal zuerst, KI nur bei Unsicherheit", desc: "Summa liest Text und QR-Codes selbst. Nur wenn etwas fehlt oder unsicher ist, liest die KI das Bild. Günstig und meist genug." },
+    { id: "local_first", label: "Lokal zuerst, KI nur bei Unsicherheit", desc: "Ordo liest Text und QR-Codes selbst. Nur wenn etwas fehlt oder unsicher ist, liest die KI das Bild. Günstig und meist genug." },
     { id: "always", label: "Immer mit KI", desc: "Die KI liest jede Rechnung vom Bild, die lokale Erkennung prüft gegen. Am sichersten, kostet bei Cloud-KI pro Rechnung ein wenig." },
     { id: "local_only", label: "Nur lokal (nie KI)", desc: "Nichts verlässt dein Gerät. Unsichere Rechnungen warten dann unter „Zu prüfen“ auf dich." },
   ];
@@ -312,7 +300,7 @@ function AiTab() {
               );
             })}
           </div>
-          {ai.provider === "none" && ai.strategy !== "local_only" ? <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">Noch ist keine KI ausgewählt – bis dahin liest Summa nur lokal. Wähle unten einen Anbieter.</p> : null}
+          {ai.provider === "none" && ai.strategy !== "local_only" ? <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">Noch ist keine KI ausgewählt – bis dahin liest Ordo nur lokal. Wähle unten einen Anbieter.</p> : null}
           {ai.strategy === "local_first" ? (
             <div className="mt-3 max-w-sm">
               <Field label={`KI fragen unter ${Math.round(ai.aiThreshold * 100)} % Sicherheit`} hint="Liegt die lokale Sicherheit darunter oder fehlt Betrag, Datum oder Lieferant, liest die KI die Rechnung."><input type="range" min={50} max={100} step={1} value={Math.round(ai.aiThreshold * 100)} onChange={(e) => setAi({ aiThreshold: Number(e.target.value) / 100 })} className="w-full accent-brand-600" /></Field>
@@ -327,7 +315,7 @@ function AiTab() {
           </div>
         </Card>
         <Card title="Automatisch buchen">
-          <p className="mb-3 text-sm text-(--text-muted)">Ist eine Rechnung eindeutig gelesen – von der KI, einer E-Rechnung oder dem Kassenbon-QR – bucht Summa sie sofort. Du findest sie unter Eingehende Rechnungen → Gebucht mit dem Hinweis „automatisch“ und kannst ihn jederzeit korrigieren. Unsichere Rechnungen warten weiterhin unter „Zu prüfen“.</p>
+          <p className="mb-3 text-sm text-(--text-muted)">Ist eine Rechnung eindeutig gelesen – von der KI, einer E-Rechnung oder dem Kassenbon-QR – bucht Ordo sie sofort. Du findest sie unter Eingehende Rechnungen → Gebucht mit dem Hinweis „automatisch“ und kannst ihn jederzeit korrigieren. Unsichere Rechnungen warten weiterhin unter „Zu prüfen“.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Automatisch buchen"><Select value={ai.autoBook} onChange={(e) => setAi({ autoBook: e.target.value as typeof ai.autoBook })}><option value="confident">Bei sicherer Erkennung (empfohlen)</option><option value="off">Nie – alles selbst bestätigen</option></Select></Field>
             <Field label={`Mindest-Sicherheit: ${Math.round(ai.minAutoApproveConfidence * 100)} %`} hint="Betrag, Datum, Lieferant und Kategorie müssen zusätzlich einzeln sicher sein; Anlagen und Sonderfälle werden nie automatisch gebucht."><input type="range" min={80} max={100} step={1} value={Math.round(ai.minAutoApproveConfidence * 100)} onChange={(e) => setAi({ minAutoApproveConfidence: Number(e.target.value) / 100 })} className="w-full accent-brand-600" disabled={ai.autoBook === "off"} /></Field>
@@ -574,7 +562,7 @@ function AccountTab() {
           </div>
         ) : pending ? (
           <div className="space-y-3 text-sm">
-            <div className="rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sky-900 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-100">Fast fertig: Öffne den Link in der E-Mail an <strong>{s.email}</strong>. Danach meldet Summa dich automatisch an und gleicht ab.</div>
+            <div className="rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sky-900 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-100">Fast fertig: Öffne den Link in der E-Mail an <strong>{s.email}</strong>. Danach meldet Ordo dich automatisch an und gleicht ab.</div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => run(async () => { const { error } = await sync.client!.auth.signInWithPassword({ email: s.email, password: s.authSecret }); if (error) throw new Error(translateAuthError(error.message)); await sync.refreshMeta(); await sync.sync(); toast.success("Angemeldet"); })} loading={busy}><CheckCircle2 className="h-4 w-4" /> Ich habe bestätigt</Button>
               <Button size="sm" variant="outline" onClick={() => run(async () => { await resendConfirmation(); toast.success("E-Mail erneut gesendet"); })} loading={busy}>E-Mail erneut senden</Button>
@@ -758,7 +746,7 @@ function AboutTab() {
           <Logo className="h-14 w-14" />
           <div className="text-sm">
             <div className="text-lg font-semibold">Ordo {info?.version ?? ""}</div>
-            <p className="text-(--text-muted)">Ordnung für deinen Betrieb – mit Summa für die Buchhaltung (benannt nach Luca Paciolis „Summa de arithmetica“, 1494) und Modulen für Projekte, Lager und Produktion.</p>
+            <p className="text-(--text-muted)">Ordo ist deine Buchhaltungs-App: Rechnungen, Buchungen, Kontoauszüge, Steuern und Anlagen an einem Ort. Projekte, Lager, Produktion und Post ergänzt du bei Bedarf als Add-ons.</p>
             <p className="mt-2 text-(--text-muted)">Lokal · verschlüsselt (Argon2id + AES-256-GCM) · keine Werbung, keine Analyse-Tools, keine Nutzungsdaten. Ein Server sieht nur, was du selbst einschaltest (Sync, eigene Datenbank, Schnittstellen, Cloud-KI) – mit eigener Datenbank liegt bei uns gar nichts.</p>
           </div>
         </div>
@@ -840,7 +828,7 @@ function InvoiceSettingsTab() {
         <Card title="Import deiner Rechnungen">
           <ul className="space-y-2 text-sm">
             <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> Keine Nummernkreise oder Vorlagen nötig – die Rechnungsnummer kommt aus deinem Programm.</li>
-            <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> Summa liest Kunde, Nummer, Datum, Netto/USt/Brutto (bei E-Rechnungen und Zahlungs-QR exakt) und bucht die Einnahme als offen.</li>
+            <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> Ordo liest Kunde, Nummer, Datum, Netto/USt/Brutto (bei E-Rechnungen und Zahlungs-QR exakt) und bucht die Einnahme als offen.</li>
             <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> Sobald der Zahlungseingang am Kontoauszug auftaucht, wird die Rechnung automatisch als bezahlt zugeordnet.</li>
           </ul>
           <div className="mt-4 flex flex-wrap items-center gap-2">

@@ -10,7 +10,7 @@ import { systemPrompt, turnContext } from "./prompt";
 
 const mod = (id: OrdoModule["id"], atlasContext = ""): OrdoModule =>
   ({ id, name: id, title: id, tagline: "", description: "", features: [], icon: () => null, tint: "", defaultInstalled: true, mobile: true, nav: [], routes: [{ path: `/${id}`, element: null }], atlasContext }) as unknown as OrdoModule;
-const ALL = [mod("basis", "Basis: contacts"), mod("summa", "Summa: transactions"), mod("projekte", "Projekte: projects"), mod("produkte"), mod("produktion")];
+const ALL = [mod("basis", "Basis: contacts"), mod("summa", "Ordo: transactions"), mod("projekte", "Projekte: projects"), mod("produkte"), mod("produktion")];
 
 let store: VaultStore;
 const ids = { project: "prj_test", member: "mbr_me", other: "mbr_other", task: "tsk_one", product: "prd_one" };

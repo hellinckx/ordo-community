@@ -21,7 +21,7 @@ pub struct FileInfo {
 }
 
 const SUPPORTED: &[&str] = &["pdf", "jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff", "heic", "heif", "avif", "xlsx", "xls", "csv", "txt", "eml", "xml"];
-/// Sub folder Summa itself moves processed files into – never read back.
+/// Sub folder Ordo itself moves processed files into – never read back.
 const PROCESSED_DIR: &str = "Verarbeitet";
 
 fn is_supported(p: &Path) -> bool {

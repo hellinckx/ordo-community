@@ -11,7 +11,7 @@ import { postModule } from "./post";
 import type { ModuleId, OrdoModule } from "./types";
 
 /** Order = order in the sidebar and in the module overview. */
-export const ALL_MODULES: OrdoModule[] = [basisModule, projekteModule, summaModule, produkteModule, produktionModule, postModule];
+export const ALL_MODULES: OrdoModule[] = [basisModule, summaModule, projekteModule, produkteModule, produktionModule, postModule];
 
 export function moduleById(id: string): OrdoModule | undefined {
   return ALL_MODULES.find((m) => m.id === id);
@@ -24,7 +24,7 @@ export function isInstalled(settings: Settings | undefined, m: OrdoModule): bool
 
 /** Whether the operator allows this account to use the module (admin-controlled; everything allowed offline). */
 export function isAllowed(access: Record<string, boolean> | null, id: ModuleId): boolean {
-  if (id === "basis") return true;
+  if (moduleById(id)?.required) return true;
   return access?.[id] ?? true;
 }
 

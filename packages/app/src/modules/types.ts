@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import type { Mode, Profile, Vault, VaultStore } from "@ordo/core";
 import type { AtlasTool } from "@/atlas/tools";
 
-/** Everything Ordo can install. "basis" is always there and cannot be removed. */
+/** Internal feature IDs. The basis and accounting core are always available. */
 export type ModuleId = "basis" | "summa" | "projekte" | "produkte" | "produktion" | "post";
 
 export interface NavItemDef {
@@ -19,7 +19,7 @@ export interface NavItemDef {
   alsoActive?: string[];
   /** Mobile tab bar candidate, lower = earlier. */
   mobileRank?: number;
-  /** In the simple layout (only Summa installed): shown under "Mehr" instead of on top. */
+  /** In the simple layout (only Ordo installed): shown under "Mehr" instead of on top. */
   secondary?: boolean;
   /** Hidden in the simple layout, appears once more modules are installed. */
   advanced?: boolean;
@@ -40,7 +40,7 @@ export interface RouteDef {
 
 export interface OrdoModule {
   id: ModuleId;
-  /** Product name, e.g. "Summa". */
+  /** Name of the accounting core or optional add-on. */
   name: string;
   /** What it is, e.g. "Buchhaltung". */
   title: string;

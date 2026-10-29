@@ -19,7 +19,7 @@ export const SYSTEM_ROOTS = [
 ] as const;
 export type SystemRootKey = (typeof SYSTEM_ROOTS)[number]["key"];
 
-/** Virtual folder in the tree that lists Summa's incoming/outgoing invoice files (read-only). */
+/** Virtual folder in the tree that lists Ordo's incoming/outgoing invoice files (read-only). */
 export const SUMMA_FOLDER = "__summa";
 
 const live = (f: { deletedAt?: string }) => !f.deletedAt;

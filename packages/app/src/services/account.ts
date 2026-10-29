@@ -1,5 +1,5 @@
 /**
- * Summa account = e-mail + ONE password. The password unlocks the local vault (Argon2id) and, derived a
+ * Ordo account = e-mail + ONE password. The password unlocks the local vault (Argon2id) and, derived a
  * second way (Argon2id with an e-mail-bound salt, see deriveAccountSecret), signs in to the sync server –
  * the server never sees the password and cannot open the vault. The derived secret is kept inside the encrypted vault so an
  * unlocked device can re-sign in on its own.

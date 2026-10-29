@@ -5,7 +5,7 @@ import { Button } from "@/components/ui";
 import { legalPage, openExternal } from "@/components/LegalLinks";
 import { cls } from "@/lib/format";
 
-// storage key kept from the Summa days, so people who already saw the notice are not asked again
+// storage key kept from the Ordo days, so people who already saw the notice are not asked again
 const KEY = "summa.privacyNoticeSeen";
 
 function seen(): boolean {

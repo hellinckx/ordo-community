@@ -150,7 +150,7 @@ export function ProjectInvoicesTab({ projectId }: { projectId: string }) {
   );
 
   if (!rights.canSeeInvoices) {
-    return <Notice>{rights.summaInstalled ? "Rechnungen sieht nur, wer die Buchhaltung sehen darf." : "Rechnungen schreibst du mit Summa – Buchhaltung. Du findest es unter Module."}</Notice>;
+    return <Notice>{rights.summaInstalled ? "Rechnungen sieht nur, wer die Buchhaltung sehen darf." : "Rechnungen schreibst du mit Ordo – Buchhaltung. Du findest es unter Module."}</Notice>;
   }
   if (!project) return null;
 
@@ -199,7 +199,7 @@ export function ProjectInvoicesTab({ projectId }: { projectId: string }) {
         <EmptyState
           icon={<ReceiptText className="h-8 w-8" />}
           title="Noch keine Rechnung"
-          body={billing.budgetCents ? `Der Vorschlag für die erste Rechnung: ${fmtMoney(billing.suggestedCents)} netto Anzahlung.` : "Rechnungen zu diesem Projekt erscheinen hier – mit Leistungszeitraum und Status aus Summa."}
+          body={billing.budgetCents ? `Der Vorschlag für die erste Rechnung: ${fmtMoney(billing.suggestedCents)} netto Anzahlung.` : "Rechnungen zu diesem Projekt erscheinen hier – mit Leistungszeitraum und Status aus Ordo."}
           action={createButton}
         />
       ) : (

@@ -371,7 +371,7 @@ export function seedProjekteDemo(store: VaultStore, profileId: string): void {
       vault.tasks = [...vault.tasks, ...tasks];
       vault.milestones = [...vault.milestones, ...milestones];
       vault.timeEntries = [...vault.timeEntries, ...entries];
-      // the Summa demo has an invoice for the website concept and one for the café's menus – they belong to these projects
+      // the Ordo demo has an invoice for the website concept and one for the café's menus – they belong to these projects
       const web = projects[0]!;
       const cd = projects[1]!;
       vault.invoices = vault.invoices.map((inv) => {

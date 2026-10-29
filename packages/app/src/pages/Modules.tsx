@@ -9,7 +9,7 @@ import { Badge, Button, ConfirmDialog, PageHeader } from "@/components/ui";
 import { toast } from "@/state/toasts";
 import { cls } from "@/lib/format";
 
-/** Module overview: what Ordo can do, install and remove with one click. */
+/** Ordo is the accounting app; everything beyond its required core is an optional add-on. */
 export default function Modules() {
   const vault = useVault();
   const access = useModuleAccess();
@@ -17,24 +17,36 @@ export default function Modules() {
   const { id } = useParams();
   const focus = id ? moduleById(id) : undefined;
   const [removing, setRemoving] = useState<OrdoModule | null>(null);
+  const accounting = moduleById("summa")!;
+  const addons = ALL_MODULES.filter((m) => !m.required);
 
   const install = (m: OrdoModule) => {
     installModule(m.id);
-    toast.success(`${m.name} installiert`, "Du findest es jetzt links im Menü.");
+    toast.success(`${m.name} aktiviert`, "Du findest das Add-on jetzt links im Menü.");
     const first = m.nav[0];
     if (first) navigate(first.to);
   };
 
   return (
     <div className="mx-auto max-w-5xl pb-16">
-      <PageHeader title="Module" subtitle="Ordo wächst mit dir. Installiere nur, was du brauchst – entfernen geht jederzeit, deine Daten bleiben erhalten." />
+      <PageHeader title="Add-ons" subtitle="Ordo ist deine Buchhaltungs-App. Ergänze nur die Funktionen, die du zusätzlich brauchst. Deine Daten bleiben beim Deaktivieren erhalten." />
+      <section aria-label="Ordo Buchhaltung" className="surface mb-7 p-5">
+        <div className="flex items-start gap-4">
+          <ModuleTile module={accounting} size="lg" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2"><h2 className="text-[17px] font-semibold tracking-tight">Ordo · Buchhaltung</h2><Badge tone="brand">immer dabei</Badge></div>
+            <p className="mt-1 text-sm text-(--text-muted)">Rechnungen, Einnahmen und Ausgaben, Kontoauszüge, Steuern, Analysen und Anlagen. Dazu Atlas, Kontakte, Dateien und Datensicherung. Die Buchhaltung ist fester Bestandteil von Ordo.</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/einstellungen")}>Allgemeine Einstellungen</Button>
+          </div>
+        </div>
+      </section>
       {focus && !isInstalled(vault.settings, focus) ? (
         <div className="mb-6 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900 dark:border-brand-900 dark:bg-brand-950/50 dark:text-brand-100">
-          Diese Seite gehört zu <strong>{focus.name}</strong>. Installiere das Modul, um sie zu nutzen.
+          Diese Seite gehört zum Add-on <strong>{focus.name}</strong>. Aktiviere es, um sie zu nutzen.
         </div>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2">
-        {ALL_MODULES.map((m) => {
+        {addons.map((m) => {
           const installed = isInstalled(vault.settings, m);
           const allowed = isAllowed(access, m.id);
           const missing = (m.requires ?? []).filter((r) => !isInstalled(vault.settings, moduleById(r)!)).map((r) => moduleById(r)!.name);
@@ -44,8 +56,8 @@ export default function Modules() {
                 <ModuleTile module={m} size="lg" />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-[17px] font-semibold tracking-tight">{m.id === "basis" ? "Ordo Basis" : m.name}</h2>
-                    {m.required ? <Badge tone="neutral">immer dabei</Badge> : installed ? <Badge tone="success"><Check className="mr-0.5 h-3 w-3" />installiert</Badge> : null}
+                    <h2 className="text-[17px] font-semibold tracking-tight">{m.name}</h2>
+                    {installed ? <Badge tone="success"><Check className="mr-0.5 h-3 w-3" />aktiviert</Badge> : <Badge tone="neutral">optional</Badge>}
                   </div>
                   <div className="text-sm text-(--text-muted)">{m.title}</div>
                 </div>
@@ -63,9 +75,9 @@ export default function Modules() {
                 {m.required ? null : !allowed ? (
                   <span className="inline-flex items-center gap-1 text-xs text-(--text-muted)"><Lock className="h-3.5 w-3.5" /> Für dein Konto nicht freigeschaltet</span>
                 ) : installed ? (
-                  <Button variant="ghost" size="sm" onClick={() => setRemoving(m)}>Entfernen</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setRemoving(m)}>Deaktivieren</Button>
                 ) : (
-                  <Button size="sm" onClick={() => install(m)}>{missing.length ? `Mit ${missing.join(", ")} installieren` : "Installieren"}</Button>
+                  <Button size="sm" onClick={() => install(m)}>{missing.length ? `Mit ${missing.join(", ")} aktivieren` : "Aktivieren"}</Button>
                 )}
               </div>
             </section>
@@ -75,9 +87,9 @@ export default function Modules() {
       <ConfirmDialog
         open={!!removing}
         onClose={() => setRemoving(null)}
-        title={`${removing?.name} entfernen?`}
-        body="Das Modul verschwindet aus dem Menü. Deine Daten bleiben gespeichert und sind nach erneutem Installieren wieder da."
-        confirmLabel="Entfernen"
+        title={`${removing?.name} deaktivieren?`}
+        body="Das Add-on verschwindet aus dem Menü. Deine Daten bleiben gespeichert und sind nach erneutem Aktivieren wieder da."
+        confirmLabel="Deaktivieren"
         onConfirm={() => { if (removing) uninstallModule(removing.id); }}
       />
     </div>

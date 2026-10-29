@@ -128,8 +128,8 @@ export const CompanySchema = z.object({
   invoiceNumberPattern: z.string().default("RE-{YYYY}-{NNNN}"),
   nextInvoiceNumber: z.number().int().default(1),
   /**
-   * How outgoing invoices come into Summa:
-   *  - "summa":    written in Summa (numbering, PDF, § 11 UStG)
+   * How outgoing invoices come into Ordo:
+   *  - "summa":    written in Ordo (numbering, PDF, § 11 UStG)
    *  - "external": produced elsewhere (ERP, Word, Online-Tool) and imported like receipts – no numbering setup
    * Undefined = not decided yet (asked in the welcome tour).
    */
@@ -587,7 +587,7 @@ export const SyncSettingsSchema = z.object({
   supabaseAnonKey: z.string().default(""),
   lastSyncAt: isoDateTime.optional(),
   deviceId: z.string().default(""),
-  /** Summa account (e-mail + one password). The login secret is derived from the password – see deriveAccountSecret. */
+  /** Ordo account (e-mail + one password). The login secret is derived from the password – see deriveAccountSecret. */
   email: z.string().default(""),
   /** Derived login secret for the sync server; lives only inside the encrypted vault. */
   authSecret: z.string().default(""),

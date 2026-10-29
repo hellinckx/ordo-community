@@ -110,7 +110,7 @@ export function InvoiceModeNotice({ profile }: { profile: Profile }) {
         </Button>
       }
     >
-      Laut deinen Einstellungen schreibst du Rechnungen in einem anderen Programm. Damit du die Rechnung hier fertig machen kannst, stell auf „In Summa schreiben“ um.{" "}
+      Laut deinen Einstellungen schreibst du Rechnungen in einem anderen Programm. Damit du die Rechnung hier fertig machen kannst, stell auf „In Ordo schreiben“ um.{" "}
       <button type="button" className="underline" onClick={() => navigate("/einstellungen/rechnungen")}>Einstellungen</button>
     </Notice>
   );

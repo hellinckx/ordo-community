@@ -17,7 +17,7 @@ export const projekteModule: OrdoModule = {
   title: "Projekte & Zeiterfassung",
   tagline: "Projekte, Arbeitspakete, Meilensteine, Zeiten und Angebote.",
   description:
-    "Plane Projekte mit Arbeitspaketen und Aufgaben, setze Meilensteine, sieh alles im Zeitplan, erfasse Zeiten per Stoppuhr und behalte Budget und Stunden im Blick. Angebote schreibst du direkt im Projekt – angenommene Angebote werden mit einem Klick zur Rechnung in Summa.",
+    "Plane Projekte mit Arbeitspaketen und Aufgaben, setze Meilensteine, sieh alles im Zeitplan, erfasse Zeiten per Stoppuhr und behalte Budget und Stunden im Blick. Angebote schreibst du direkt im Projekt – angenommene Angebote werden mit einem Klick zur Rechnung in Ordo.",
   features: ["Projekte mit Budget und Kunden", "Arbeitspakete & Aufgaben im Baum, Board und Zeitplan", "Meilensteine", "Zeiterfassung mit Stoppuhr", "Auswertung: Prognose, Auslastung, Risiken", "Angebote mit PDF", "Projekt-Export nach Excel"],
   icon: FolderKanban,
   tint: "#5856d6",

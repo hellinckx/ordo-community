@@ -175,7 +175,7 @@ export default function Onboarding() {
 
   if (welcome) {
     return (
-      <AuthLayout title={entry === "register" ? "Konto erstellen" : "Willkommen bei Ordo"} subtitle="Buchhaltung, Projekte und Lager an einem Ort – lokal und verschlüsselt.">
+      <AuthLayout title={entry === "register" ? "Konto erstellen" : "Willkommen bei Ordo"} subtitle="Deine Buchhaltung – lokal und verschlüsselt. Weitere Funktionen ergänzt du als Add-ons.">
         <div className="surface animate-fade-in overflow-hidden">
           {needsServer ? (
             <div className="space-y-4 p-6">
@@ -183,13 +183,13 @@ export default function Onboarding() {
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"><HardDrive className="h-[18px] w-[18px]" /></span>
                 <div>
                   <h2 className="font-semibold">Ordo läuft bei dir</h2>
-                  <p className="mt-0.5 text-sm text-(--text-muted)">Ohne Konto bleibt alles verschlüsselt auf diesem Gerät. Für mehrere Geräte oder ein Team verbindest du deine eigene Datenbank – ein kostenloses Supabase-Projekt, das dir gehört.</p>
+                  <p className="mt-0.5 text-sm text-(--text-muted)">Ohne Konto bleibt alles verschlüsselt auf diesem Gerät. Für mehrere Geräte oder ein Team verbindest du deine eigene Datenbank – ein Supabase-Projekt oder eine selbst gehostete Supabase-Instanz, die dir gehört.</p>
                 </div>
               </div>
-              <Button className="w-full justify-center" onClick={() => setWelcome(false)}><HardDrive className="h-4 w-4" /> Ohne Konto starten</Button>
+              <Button className="w-full justify-center" onClick={() => setWelcome(false)}><HardDrive className="h-4 w-4" /> Lokal ohne Konto starten</Button>
               <div className="grid gap-2 sm:grid-cols-2">
                 <Button variant="outline" className="justify-center" onClick={() => setOwnDb("setup")}><Database className="h-4 w-4" /> Datenbank einrichten</Button>
-                <Button variant="outline" className="justify-center" onClick={() => setOwnDb("join")}><LogIn className="h-4 w-4" /> Mit Datenbank anmelden</Button>
+                <Button variant="outline" className="justify-center" onClick={() => setOwnDb("join")}><LogIn className="h-4 w-4" /> Eigene Datenbank verbinden</Button>
               </div>
             </div>
           ) : <>
@@ -221,7 +221,7 @@ export default function Onboarding() {
                   </button>
                 ))}
               </div>
-              <p className="-mt-2 text-xs text-(--text-muted)">{mode === "business" ? "Summa für die Buchhaltung ist gleich dabei. Projekte, Lager und Produktion fügst du jederzeit unter „Module“ hinzu." : "Privat und Firma? Ein Konto reicht – das zweite Profil legst du danach im Menü rechts oben an."}</p>
+              <p className="-mt-2 text-xs text-(--text-muted)">{mode === "business" ? "Ordo enthält die gesamte Buchhaltung. Projekte, Lager und Produktion fügst du jederzeit unter „Add-ons“ hinzu." : "Privat und Firma? Ein Konto reicht – das zweite Profil legst du danach im Menü rechts oben an."}</p>
               <Field label={mode === "business" ? "Firmenname" : "Dein Name"}><IconInput icon={mode === "business" ? <Building2 /> : <User />} value={name} onChange={(e) => setName(e.target.value)} placeholder={mode === "business" ? "z. B. Muster Design e.U." : "z. B. Max Muster"} /></Field>
               <Field label="E-Mail"><IconInput icon={<Mail />} type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="du@beispiel.at" /></Field>
               <Field label="Passwort festlegen" hint="Ein Passwort für alles: Anmelden auf allen Geräten und Verschlüsseln deiner Daten. Es verlässt dein Gerät nie.">
@@ -257,7 +257,7 @@ export default function Onboarding() {
         <div className="surface divide-y divide-(--border) overflow-hidden">
           <OptionRow icon={<Sparkles />} title={demoStatus ?? "Demo ansehen"} body="Beispielfirma mit einem Jahr Daten zum Durchklicken." onClick={() => void runDemo()} disabled={!!demoStatus} />
           {needsServer ? null : <>
-            <OptionRow icon={<Database />} title="Kostenlos mit eigener Datenbank" body="Deine verschlüsselten Daten in deinem eigenen Supabase-Projekt – bei uns liegt dann gar nichts." onClick={() => setOwnDb("setup")} />
+            <OptionRow icon={<Database />} title="Eigene Datenbank einrichten" body="Deine verschlüsselten Daten in deinem eigenen Supabase-Projekt oder auf deiner Infrastruktur." onClick={() => setOwnDb("setup")} />
             <OptionRow icon={<HardDrive />} title="Ohne Konto nutzen" body="Alles bleibt nur auf diesem Gerät, kein Abgleich." onClick={() => setWelcome(false)} />
           </>}
           <OptionRow icon={<ArchiveRestore />} title="Sicherung wiederherstellen" body="Aus einer .ordo-Datei, die du unter Export & Sicherung gespeichert hast." onClick={() => setRestoreOpen(true)} />
@@ -289,7 +289,7 @@ export default function Onboarding() {
                 <ModeCard active={mode === "employee"} onClick={() => setMode("employee")} icon={<User className="h-6 w-6" />} title="Privat / angestellt" body="Rechnungen sammeln, Werbungskosten und außergewöhnliche Belastungen finden – fertig für die Arbeitnehmerveranlagung." />
                 <ModeCard active={mode === "business"} onClick={() => setMode("business")} icon={<Briefcase className="h-6 w-6" />} title="Firma / selbstständig" body="Rechnungen rein, Umsatzsteuer-Voranmeldung und Gewinn raus – inklusive Rechnungen an Kunden." />
               </div>
-              <p className="mt-4 text-xs text-(--text-muted)">Summa für die Buchhaltung ist gleich dabei. Für Firmen gibt es dazu Projekte &amp; Zeiterfassung, Produkte &amp; Lager und Produktion – die fügst du jederzeit unter „Module“ hinzu.</p>
+              <p className="mt-4 text-xs text-(--text-muted)">Die gesamte Buchhaltung gehört zu Ordo. Für Firmen gibt es dazu Projekte &amp; Zeiterfassung, Produkte &amp; Lager und Produktion – die aktivierst du jederzeit unter „Add-ons“.</p>
               <div className="mt-6 flex justify-between">
                 <Button variant="ghost" onClick={() => setWelcome(true)}>
                   <ArrowLeft className="h-4 w-4" /> Zurück
@@ -373,7 +373,7 @@ export default function Onboarding() {
             <div className="animate-fade-in space-y-4">
               {pendingConfirm ? <div className="flex items-start gap-3 rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-100"><MailCheck className="mt-0.5 h-4 w-4 shrink-0" /><span>Konto erstellt. Bitte öffne noch den Link in der E-Mail an <strong>{email}</strong> – danach gleicht Ordo deine Daten automatisch ab. Bis dahin funktioniert alles ganz normal.</span></div> : null}
               <h2 className="text-lg font-semibold"><Bot className="mr-1 inline h-5 w-5 text-brand-600" /> Rechnungen automatisch lesen</h2>
-              <p className="text-sm text-(--text-muted)">Mit einer KI liest Summa auch Fotos, Fremdsprachen und komplizierte Layouts zuverlässig – und bucht eindeutige Rechnungen ganz von allein. {isTauri ? "Am einfachsten mit deinem ChatGPT-Konto (Plus oder Pro); " : "Mit einem OpenAI- oder Claude-API-Key; "}ohne KI arbeitet Summa rein lokal und du bestätigst jede Rechnung selbst. Alles später änderbar unter Einstellungen → KI-Erkennung.</p>
+              <p className="text-sm text-(--text-muted)">Mit einer KI liest Ordo auch Fotos, Fremdsprachen und komplizierte Layouts zuverlässig – und bucht eindeutige Rechnungen ganz von allein. {isTauri ? "Am einfachsten mit deinem ChatGPT-Konto (Plus oder Pro); " : "Mit einem OpenAI- oder Claude-API-Key; "}ohne KI arbeitet Ordo rein lokal und du bestätigst jede Rechnung selbst. Alles später änderbar unter Einstellungen → KI-Erkennung.</p>
               <AiProviderSetup onboarding onReadyChange={setAiReady} />
               <div className="flex flex-wrap justify-between gap-2">
                 <Button variant="ghost" onClick={() => setStep(3)} className={cls(accountCreated && "invisible")}>
@@ -391,7 +391,7 @@ export default function Onboarding() {
           {step === 5 ? (
             <div className="animate-fade-in space-y-4">
               <h2 className="text-lg font-semibold"><FolderOpen className="mr-1 inline h-5 w-5 text-brand-600" /> Ordner verbinden</h2>
-              <p className="text-sm text-(--text-muted)">Wähle die Ordner, in denen deine Rechnungen landen – ein Überordner reicht, Unterordner (z. B. pro Jahr) liest Summa mit. Danach genügt ein Klick auf „Nach Neuem suchen“, und Summa erledigt den Rest.</p>
+              <p className="text-sm text-(--text-muted)">Wähle die Ordner, in denen deine Rechnungen landen – ein Überordner reicht, Unterordner (z. B. pro Jahr) liest Ordo mit. Danach genügt ein Klick auf „Nach Neuem suchen“, und Ordo erledigt den Rest.</p>
               <WatchFolderCards compact />
               <div className="flex flex-wrap justify-between gap-2">
                 <Button variant="ghost" onClick={() => setStep(4)}>

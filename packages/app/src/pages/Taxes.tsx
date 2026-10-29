@@ -161,7 +161,7 @@ function E1aTab() {
         <ul className="list-disc space-y-1 pl-5 text-sm text-(--text-muted)">
           <li>Einkommensteuererklärung {year}: Formular <strong>E 1</strong> mit Beilage <strong>E 1a</strong> (Punkt 2 bis 4) – die Kennzahlen oben eins zu eins übertragen.</li>
           <li>Frist: Papier bis {fmtDate(dl.paper)}, FinanzOnline bis {fmtDate(dl.finanzOnline)} (bei steuerlicher Vertretung länger).</li>
-          <li>KZ 9050 immer ausfüllen (auch mit 0). Rechnungen 7 Jahre aufbewahren – Summa speichert sie verschlüsselt.</li>
+          <li>KZ 9050 immer ausfüllen (auch mit 0). Rechnungen 7 Jahre aufbewahren – Ordo speichert sie verschlüsselt.</li>
           <li>Einkommensteuertarif {year}: {tariffTable(year).map((b) => `${Math.round(b.rate * 100)} %${b.to ? ` bis ${b.to.toLocaleString("de-AT")} €` : " darüber"}`).join(" · ")}</li>
         </ul>
       </Card>

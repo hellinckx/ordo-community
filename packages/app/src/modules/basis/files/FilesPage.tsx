@@ -40,7 +40,7 @@ export default function FilesPage() {
   const documents = useList("documents");
   const navigate = useNavigate();
   const { role } = useMe();
-  // the read-only folder with Summa's invoices – only for people who may see the bookkeeping
+  // the read-only folder with Ordo's invoices – only for people who may see the bookkeeping
   const summa = useIsInstalled("summa") && can(role, "summa", "read");
   const canRead = can(role, "files", "read");
   const canWrite = can(role, "files", "write");
@@ -214,7 +214,7 @@ export default function FilesPage() {
           e.stopPropagation();
           setPageOver(false);
           if (selected === SUMMA_FOLDER) {
-            toast.info("Rechnungen gehören nach Summa", "Zieh sie unter „Eingehende Rechnungen“ hinein, dann liest Summa sie selbst.");
+            toast.info("Rechnungen in der Buchhaltung ablegen", "Zieh sie unter „Eingehende Rechnungen“ hinein, dann liest Ordo sie selbst.");
             return;
           }
           void upload(await filesFromDrop(e.dataTransfer));
@@ -278,7 +278,7 @@ export default function FilesPage() {
   };
 
   const flat = flattenFolders(folders);
-  const title = selected === SUMMA_FOLDER ? "Rechnungen (Summa)" : selectedFolder ? selectedFolder.name : "Alle Dateien";
+  const title = selected === SUMMA_FOLDER ? "Rechnungen" : selectedFolder ? selectedFolder.name : "Alle Dateien";
   const crumbs = selectedFolder?.parentId ? folderPath(folders, selectedFolder.parentId) : "";
   const isProtected = !!selectedFolder?.system;
 
@@ -319,7 +319,7 @@ export default function FilesPage() {
             <div className="mt-2 border-t border-(--border) pt-2">
               <button type="button" onClick={() => setSelected(SUMMA_FOLDER)} className={cls("flex w-full items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-left text-sm", selected === SUMMA_FOLDER ? "bg-brand-50 font-medium text-brand-800 dark:bg-brand-950/60 dark:text-brand-200" : "hover:bg-(--surface-2)")}>
                 <ReceiptText className="h-4 w-4 shrink-0" />
-                <span className="flex-1">Rechnungen (Summa)</span>
+                <span className="flex-1">Rechnungen</span>
                 {summaCount ? <span className="text-xs font-normal tabular text-(--text-muted)">{summaCount}</span> : null}
               </button>
             </div>
@@ -338,7 +338,7 @@ export default function FilesPage() {
                   {counts.get(folder.id) ? ` (${counts.get(folder.id)})` : ""}
                 </option>
               ))}
-              {summa ? <option value={SUMMA_FOLDER}>Rechnungen (Summa){summaCount ? ` (${summaCount})` : ""}</option> : null}
+              {summa ? <option value={SUMMA_FOLDER}>Rechnungen{summaCount ? ` (${summaCount})` : ""}</option> : null}
             </Select>
           </div>
 
@@ -430,7 +430,7 @@ export default function FilesPage() {
       {pageOver ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-center px-4 lg:bottom-10">
           <div className="glass-strong rounded-full px-4 py-2 text-sm font-medium shadow-pop">
-            {selected === SUMMA_FOLDER ? "Rechnungen bitte in Summa ablegen" : `Loslassen – landet in „${dragOver ? folders.find((f) => f.id === dragOver)?.name ?? "Ordner" : selectedFolder?.name ?? "Allgemein"}“`}
+            {selected === SUMMA_FOLDER ? "Rechnungen bitte in Ordo ablegen" : `Loslassen – landet in „${dragOver ? folders.find((f) => f.id === dragOver)?.name ?? "Ordner" : selectedFolder?.name ?? "Allgemein"}“`}
           </div>
         </div>
       ) : null}
@@ -455,7 +455,7 @@ export default function FilesPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Summa's invoices (read-only)                                        */
+/* Ordo's invoices (read-only)                                        */
 /* ------------------------------------------------------------------ */
 
 function docPartner(d: SummaDocument): string {
@@ -465,11 +465,11 @@ function docPartner(d: SummaDocument): string {
 
 function SummaList({ docs, hasAny, onOpen }: { docs: SummaDocument[]; hasAny: boolean; onOpen: (d: SummaDocument) => void }) {
   if (!docs.length) {
-    return <EmptyState icon={<ReceiptText className="h-8 w-8" />} title={hasAny ? "Nichts gefunden" : "Noch keine Rechnungen in Summa"} body={hasAny ? "Keine Rechnung passt zur Suche." : "Rechnungen und Kassenbons, die Summa liest, erscheinen hier automatisch – zum Ansehen und Herunterladen."} />;
+    return <EmptyState icon={<ReceiptText className="h-8 w-8" />} title={hasAny ? "Nichts gefunden" : "Noch keine Rechnungen in Ordo"} body={hasAny ? "Keine Rechnung passt zur Suche." : "Rechnungen und Kassenbons, die Ordo liest, erscheinen hier automatisch – zum Ansehen und Herunterladen."} />;
   }
   return (
     <div className="space-y-2">
-      <p className="text-xs text-(--text-muted)">Die Rechnungen, die Summa gelesen hat. Hier nur zum Ansehen – bearbeitet werden sie in Summa.</p>
+      <p className="text-xs text-(--text-muted)">Die Rechnungen, die Ordo gelesen hat. Hier nur zum Ansehen – bearbeitet werden sie unter „Rechnungen“.</p>
       <div className="surface overflow-hidden">
         <ul className="divide-y divide-(--border)">
           {docs.map((d) => {
@@ -504,7 +504,7 @@ function SummaDocModal({ doc, onClose, onOpenInSumma }: { doc: SummaDocument | n
       size="lg"
       footer={
         <>
-          <Button variant="ghost" className="mr-auto" onClick={() => { onOpenInSumma(doc); onClose(); }}>In Summa öffnen</Button>
+          <Button variant="ghost" className="mr-auto" onClick={() => { onOpenInSumma(doc); onClose(); }}>In Ordo öffnen</Button>
           <Button variant="outline" loading={busy} onClick={async () => { setBusy(true); await downloadAttachment(doc.attachmentId, doc.originalName, doc.mime); setBusy(false); }}>
             <Download className="h-4 w-4" /> Herunterladen
           </Button>

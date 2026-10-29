@@ -1,5 +1,5 @@
 /**
- * Summa vault cryptography.
+ * Ordo vault cryptography.
  *
  * Design (see docs/SECURITY.md):
  *  - A random 256-bit master key encrypts the vault document and every attachment (AES-256-GCM, fresh IV per blob).
@@ -291,7 +291,7 @@ export function isVaultFile(bytes: Uint8Array): boolean {
 }
 
 export function readHeader(bytes: Uint8Array): { header: VaultHeader; payload: Uint8Array } {
-  if (!isVaultFile(bytes)) throw new Error("Das ist keine Summa-Tresordatei.");
+  if (!isVaultFile(bytes)) throw new Error("Das ist keine Ordo-Tresordatei.");
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const headerLen = view.getUint32(VAULT_MAGIC.length, true);
   const start = VAULT_MAGIC.length + 4;

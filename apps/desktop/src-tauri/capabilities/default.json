@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Summa main window capabilities",
+  "description": "Ordo main window capabilities",
   "windows": ["main"],
   "permissions": [
     "core:default",

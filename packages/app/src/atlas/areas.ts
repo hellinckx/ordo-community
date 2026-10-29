@@ -3,7 +3,7 @@ import type { ModuleId } from "@/modules/types";
 
 /**
  * Areas the owner can open or close for Atlas (Einstellungen → Atlas → "Worauf darf Atlas zugreifen?").
- * Finer than the role areas: Summa is split, so e.g. bank lines can be hidden while bookings stay visible.
+ * Finer than the role areas: Ordo is split, so e.g. bank lines can be hidden while bookings stay visible.
  */
 export type AtlasArea =
   | "bookkeeping"

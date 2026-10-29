@@ -71,9 +71,9 @@ export default function Invoices() {
   if (mode === "external") {
     return (
       <div className="space-y-4">
-        <PageHeader title="Ausgehende Rechnungen" subtitle="Rechnungen, die du deinen Kunden stellst – in deinem eigenen Programm erstellt, von Summa eingelesen und als Einnahme gebucht." actions={<><FolderLinks kind="outgoing" /><Button variant="ghost" onClick={() => navigate("/einstellungen/rechnungen")}>Rechnungen hier erstellen lassen</Button></>} />
+        <PageHeader title="Ausgehende Rechnungen" subtitle="Rechnungen, die du deinen Kunden stellst – in deinem eigenen Programm erstellt, von Ordo eingelesen und als Einnahme gebucht." actions={<><FolderLinks kind="outgoing" /><Button variant="ghost" onClick={() => navigate("/einstellungen/rechnungen")}>Rechnungen hier erstellen lassen</Button></>} />
         <ImportedInvoices />
-        {sorted.length ? <Card title="Früher in Summa erstellte Rechnungen"><p className="text-sm text-(--text-muted)">{sorted.length} Rechnung(en) – sichtbar, wenn du auf „In Summa schreiben“ umstellst.</p></Card> : null}
+        {sorted.length ? <Card title="Früher in Ordo erstellte Rechnungen"><p className="text-sm text-(--text-muted)">{sorted.length} Rechnung(en) – sichtbar, wenn du auf „In Ordo schreiben“ umstellst.</p></Card> : null}
       </div>
     );
   }
@@ -83,7 +83,7 @@ export default function Invoices() {
       <PageHeader title="Ausgehende Rechnungen" subtitle={open ? `Rechnungen an deine Kunden. Noch offen: ${fmtMoney(open)}` : "Rechnungen an deine Kunden – mit fortlaufender Nummer und allen Pflichtangaben."} actions={<><Button variant="ghost" size="sm" onClick={() => navigate("/einstellungen/rechnungen")}>Nummern & Layout</Button><Button onClick={() => navigate("/rechnungen/neu")}><Plus className="h-4 w-4" /> Neue Rechnung</Button></>} />
       {!profile.company.name || !profile.company.street ? <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:bg-amber-900/20 dark:text-amber-100">Für vollständige Rechnungen fehlen noch Firmendaten (Adresse, UID, IBAN) – im Menü rechts oben unter „Firmendaten“.</div> : null}
       {!sorted.length ? (
-        <EmptyState icon={<FileText className="h-8 w-8" />} title="Noch keine Rechnungen" body="Rechnung schreiben, als PDF speichern – Summa bucht die Einnahme und merkt sich, ob sie schon bezahlt ist." action={<Button onClick={() => navigate("/rechnungen/neu")}><Plus className="h-4 w-4" /> Erste Rechnung</Button>} />
+        <EmptyState icon={<FileText className="h-8 w-8" />} title="Noch keine Rechnungen" body="Rechnung schreiben, als PDF speichern – Ordo bucht die Einnahme und merkt sich, ob sie schon bezahlt ist." action={<Button onClick={() => navigate("/rechnungen/neu")}><Plus className="h-4 w-4" /> Erste Rechnung</Button>} />
       ) : (
         <div className="surface overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">

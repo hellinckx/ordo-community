@@ -21,8 +21,8 @@ import { atLeast } from "./areas";
 import type { ToolEnv } from "./tools-read";
 
 /*
- * Outgoing invoices (Summa "Rechnungen an Kunden"). Atlas may only write drafts – numbering like Summa's own editor,
- * never send, finalise or touch sent/paid invoices. The person checks and sends the invoice in Summa.
+ * Outgoing invoices (Ordo "Rechnungen an Kunden"). Atlas may only write drafts – numbering like Ordo's own editor,
+ * never send, finalise or touch sent/paid invoices. The person checks and sends the invoice in Ordo.
  */
 
 const ISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum als YYYY-MM-DD");
@@ -62,7 +62,7 @@ function snapshotOf(c: Contact): Invoice["customerSnapshot"] {
   return { name: c.name, street: c.street, zip: c.zip, city: c.city, country: c.country || "AT", uid: c.uid, email: c.email };
 }
 
-/** Same rule as Summa's own drafts: reverse charge from the offer, Kleinunternehmer from the profile, else standard. */
+/** Same rule as Ordo's own drafts: reverse charge from the offer, Kleinunternehmer from the profile, else standard. */
 function treatmentFor(profile: Pick<Profile, "vatRegime">, offer?: Pick<Offer, "reverseCharge">): VatTreatment {
   if (offer?.reverseCharge) return "reverse_charge";
   if (profile.vatRegime === "kleinunternehmer") return "kleinunternehmer";
@@ -102,7 +102,7 @@ const STATUS_REASON: Record<string, string> = {
 /** Why a non-draft invoice cannot be changed by Atlas. */
 export function lockedInvoiceReason(inv: Pick<Invoice, "number" | "status">): string | undefined {
   if (inv.status === "draft") return undefined;
-  return `Rechnung ${inv.number} ${STATUS_REASON[inv.status] ?? `hat den Status ${inv.status}`}. Atlas ändert nur Entwürfe: Eine ausgestellte Rechnung muss so bleiben, wie der Kunde sie bekommen hat (§ 11 UStG, Aufbewahrungspflicht). Korrigieren geht in Summa mit Storno und neuer Rechnung bzw. einer Gutschrift.`;
+  return `Rechnung ${inv.number} ${STATUS_REASON[inv.status] ?? `hat den Status ${inv.status}`}. Atlas ändert nur Entwürfe: Eine ausgestellte Rechnung muss so bleiben, wie der Kunde sie bekommen hat (§ 11 UStG, Aufbewahrungspflicht). Korrigieren geht in Ordo mit Storno und neuer Rechnung bzw. einer Gutschrift.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -159,7 +159,7 @@ export function checkInvoice(inv: Invoice, profile: Pick<Profile, "vatRegime" | 
   inv.lines.forEach((l, i) => {
     if (!l.description.trim()) add("fehler", `Position ${i + 1} hat keine Bezeichnung (Menge und Art der Leistung müssen erkennbar sein).`);
   });
-  if (inv.kind === "invoice" && gross <= 0 && inv.lines.length) add("hinweis", "Der Rechnungsbetrag ist 0 oder negativ – für eine Korrektur nimm in Summa eine Gutschrift.");
+  if (inv.kind === "invoice" && gross <= 0 && inv.lines.length) add("hinweis", "Der Rechnungsbetrag ist 0 oder negativ – für eine Korrektur nimm in Ordo eine Gutschrift.");
 
   // VAT
   if (inv.vatTreatment === "standard") {
@@ -177,7 +177,7 @@ export function checkInvoice(inv: Invoice, profile: Pick<Profile, "vatRegime" | 
   }
 
   if (inv.dueDate < inv.issueDate) add("hinweis", "Das Fälligkeitsdatum liegt vor dem Rechnungsdatum.");
-  if (inv.status === "draft") add("hinweis", "Die Rechnung ist ein Entwurf. Prüfen und versenden kannst du sie in Summa unter Rechnungen.");
+  if (inv.status === "draft") add("hinweis", "Die Rechnung ist ein Entwurf. Prüfen und versenden kannst du sie in Ordo unter Rechnungen.");
 
   return { ok: !f.some((x) => x.level === "fehler"), findings: f };
 }
@@ -208,7 +208,7 @@ function findInvoice(env: ToolEnv, ctx: AtlasToolContext, ref: string): Invoice 
   return resolveRecord(ctx.store.vault, seen(env, "invoices"), ctx.profileId, ref) as unknown as Invoice;
 }
 
-/** Draft tools – only when outgoing invoices are on "Lesen & ändern" and the role may write in Summa. */
+/** Draft tools – only when outgoing invoices are on "Lesen & ändern" and the role may write in Ordo. */
 export function invoiceWriteTools(env: ToolEnv, can: AtlasToolContext["can"]): AtlasTool[] {
   if (!env.modules.includes("summa") || !env.defs.some((d) => d.id === "invoices")) return [];
   const tools: AtlasTool[] = [];
@@ -218,7 +218,7 @@ export function invoiceWriteTools(env: ToolEnv, can: AtlasToolContext["can"]): A
       defineTool({
         name: "create_invoice_draft",
         description:
-          "Legt eine Rechnung an einen Kunden als ENTWURF in Summa an – Nummer, Fälligkeit, Texte und USt-Behandlung (Regelbesteuerung, Kleinunternehmer, Reverse Charge aus dem Angebot) setzt Ordo wie Summa selbst. Positionen mit Menge, Einheit, Einzelpreis netto in Cent und USt-Satz. Atlas versendet nie: Die Person prüft den Entwurf und versendet ihn in Summa. Das Ergebnis enthält gleich die Prüfung nach § 11 UStG.",
+          "Legt eine Rechnung an einen Kunden als ENTWURF in Ordo an – Nummer, Fälligkeit, Texte und USt-Behandlung (Regelbesteuerung, Kleinunternehmer, Reverse Charge aus dem Angebot) setzt Ordo wie Ordo selbst. Positionen mit Menge, Einheit, Einzelpreis netto in Cent und USt-Satz. Atlas versendet nie: Die Person prüft den Entwurf und versendet ihn in Ordo. Das Ergebnis enthält gleich die Prüfung nach § 11 UStG.",
         input: z.object({
           customer: z.string().describe("Kunde: id oder Name aus den Kontakten"),
           lines: z.array(LineInput).describe("Positionen der Rechnung"),
@@ -277,7 +277,7 @@ export function invoiceWriteTools(env: ToolEnv, can: AtlasToolContext["can"]): A
             createdAt: now,
             updatedAt: now,
           });
-          // stored like Summa's own drafts (offers/shared.ts saveInvoiceDraft): insert, bump the counter, link the offer
+          // stored like Ordo's own drafts (offers/shared.ts saveInvoiceDraft): insert, bump the counter, link the offer
           ctx.store.insert("invoices", inv, "atlas.create_invoice_draft");
           ctx.store.update("profiles", ctx.profileId, (p) => ({ ...p, company: { ...p.company, nextInvoiceNumber: Math.max(p.company.nextInvoiceNumber + 1, next) } }));
           if (offer && atLeast(env.level("offers"), "write") && can("offers", "write") && !offer.invoiceIds.includes(inv.id)) {
@@ -295,7 +295,7 @@ export function invoiceWriteTools(env: ToolEnv, can: AtlasToolContext["can"]): A
               dueDate: inv.dueDate,
               totals: totalsData(inv),
               check,
-              note: "Nur ein Entwurf. Die Person prüft ihn und versendet ihn in Summa – Atlas versendet keine Rechnungen.",
+              note: "Nur ein Entwurf. Die Person prüft ihn und versendet ihn in Ordo – Atlas versendet keine Rechnungen.",
             },
             link: { to: `/rechnungen/${inv.id}`, label: `Rechnung ${inv.number} öffnen` },
           };
@@ -304,7 +304,7 @@ export function invoiceWriteTools(env: ToolEnv, can: AtlasToolContext["can"]): A
       defineTool({
         name: "update_invoice_draft",
         description:
-          "Ändert einen Rechnungsentwurf (nur Status Entwurf): Kunde, Positionen (ersetzt alle), Leistungszeitraum, Fälligkeit. Versendete, bezahlte oder stornierte Rechnungen ändert Atlas nie – die korrigiert die Person in Summa mit Storno bzw. Gutschrift. Status und Versand ändert Atlas nicht.",
+          "Ändert einen Rechnungsentwurf (nur Status Entwurf): Kunde, Positionen (ersetzt alle), Leistungszeitraum, Fälligkeit. Versendete, bezahlte oder stornierte Rechnungen ändert Atlas nie – die korrigiert die Person in Ordo mit Storno bzw. Gutschrift. Status und Versand ändert Atlas nicht.",
         input: z.object({
           invoice: z.string().describe("Rechnung: id oder Nummer"),
           customer: z.string().optional().describe("Neuer Kunde: id oder Name"),
@@ -330,7 +330,7 @@ export function invoiceWriteTools(env: ToolEnv, can: AtlasToolContext["can"]): A
           const existing = findInvoice(env, ctx, i.invoice);
           const locked = lockedInvoiceReason(existing);
           if (locked) throw new AtlasToolError(locked);
-          if (existing.transactionId) throw new AtlasToolError(`Rechnung ${existing.number} ist schon gebucht. Ändere sie bitte in Summa.`);
+          if (existing.transactionId) throw new AtlasToolError(`Rechnung ${existing.number} ist schon gebucht. Ändere sie bitte in Ordo.`);
           if (!i.customer && !i.lines && !i.service_period && !i.due_date) throw new AtlasToolError("Es ist nichts zu ändern – gib customer, lines, service_period oder due_date an.");
           if (i.service_period && i.service_period.end < i.service_period.start) throw new AtlasToolError("Der Leistungszeitraum endet vor seinem Beginn.");
           const patch: Partial<Invoice> = {};
